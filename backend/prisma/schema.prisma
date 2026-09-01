@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+  X
+}
+
+enum TopicStatus {
+  IDLE
+  GENERATING
+  GENERATED
+  ERROR
+}
+
+enum ScriptStatus {
+  PENDING_REVIEW // generated, awaiting human review
+  APPROVED // approved with a schedule, waiting for the cron to claim it
+  PROCESSING // claimed by the cron; render/publish in flight
+  POSTED // live on every target platform
+  FAILED // publish attempt errored, retryable from the UI
+  REJECTED // disapproved by the reviewer
+}
+
+enum PlatformPostStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Topic {
+  id     String      @id @default(uuid())
+  issue  String
+  angle  String
+  status TopicStatus @default(IDLE)
+
+  timesUsed  Int       @default(0)
+  lastUsedAt DateTime?
+
+  generateRequestedAt DateTime?
+  generateError       String?
+
+  createdBy String?
+
+  scripts Script[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Script {
+  id      String @id @default(uuid())
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  title String
+  scriptText        String  @db.Text
+  facebookCaption   String? @db.Text
+  instagramCaption  String? @db.Text
+  youtubeCaption    String? @db.Text
+  tiktokCaption     String? @db.Text
+  xPostText         String? @db.Text
+  hashtags          String[]
+  targetPlatforms   Platform[]
+
+  status          ScriptStatus @default(PENDING_REVIEW)
+  scheduledAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  approvedBy String?
+  processingStartedAt DateTime?
+  processingAttempts  Int       @default(0)
+  lastError           String?   @db.Text
+
+  heygenVideoId   String?
+  heygenVideoUrl  String?
+  videoStorageUrl String?
+
+  posts PlatformPost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([status, scheduledAt])
+  @@index([topicId])
+}
+
+model PlatformPost {
+  id       String @id @default(uuid())
+  scriptId String
+  script   Script @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  platform       Platform
+  platformPostId String?
+  status         PlatformPostStatus @default(PENDING)
+  error          String?            @db.Text
+  publishedAt    DateTime?
+
+  metrics VideoMetric[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scriptId, platform])
+  @@index([status])
+}
+
+model VideoMetric {
+  id             String       @id @default(uuid())
+  platformPostId String
+  platformPost   PlatformPost @relation(fields: [platformPostId], references: [id], onDelete: Cascade)
+
+  views    Int @default(0)
+  likes    Int @default(0)
+  comments Int @default(0)
+  shares   Int @default(0)
+
+  fetchedAt DateTime @default(now())
+
+  @@index([platformPostId, fetchedAt])
+}
+
+model Insight {
+  id             String   @id @default(uuid())
+  category       String
+  subject        String
+  finding        String   @db.Text
+  recommendation String   @db.Text
+  confidence     String
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
