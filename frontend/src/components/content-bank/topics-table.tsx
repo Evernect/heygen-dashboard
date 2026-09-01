@@ -33,6 +33,16 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatRelative } from "@/lib/format"
 import type { Topic } from "@/lib/types/topic"
+import { cn } from "@/lib/utils"
+
+/**
+ * One layout rule for the whole grid: every cell gets the same horizontal
+ * padding and the same centred alignment, and the outer two align with the
+ * card edge. Applied to the header row and to each body row so the two can't
+ * drift out of step. Individual cells opt out of the centring with `text-*!`.
+ */
+const ROW_LAYOUT =
+  "[&>*]:px-3 [&>*]:text-center [&>*:first-child]:pl-4 [&>*:last-child]:pr-4"
 
 export function TopicsTable({
   topics,
@@ -49,119 +59,135 @@ export function TopicsTable({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-56">Issue</TableHead>
-              <TableHead className="min-w-64">Angle</TableHead>
-              <TableHead className="w-32">Status</TableHead>
-              <TableHead className="w-24 text-right">Used</TableHead>
-              <TableHead className="w-36">Last used</TableHead>
-              <TableHead className="w-28 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      {/* min-width is the point below which the action buttons would no longer
+          fit their column, so the container scrolls instead of crushing them. */}
+      <Table className="min-w-5xl table-fixed">
+        {/* Column widths live here rather than on the header cells, so the
+            header and body share one definition of the grid. */}
+        <colgroup>
+          <col className="w-[24%]" />
+          <col className="w-[24%]" />
+          <col className="w-[13%]" />
+          <col className="w-[7%]" />
+          <col className="w-[14%]" />
+          <col className="w-[18%]" />
+        </colgroup>
 
-          <AnimatedTableBody>
-            <AnimatePresence initial={false}>
-              {topics.map((topic) => {
-                const isGenerating =
-                  generatingId === topic.id || topic.status === "GENERATING"
+        <TableHeader>
+          <TableRow className={cn(ROW_LAYOUT, "[&>th]:h-11")}>
+            <TableHead>Issue</TableHead>
+            <TableHead>Angle</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Used</TableHead>
+            <TableHead>Last used</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
 
-                return (
-                  <AnimatedTableRow
-                    key={topic.id}
-                    layout
-                    className="border-b transition-colors hover:bg-muted/40"
-                  >
-                    <TableCell className="font-medium">
-                      {topic.issue}
-                      {topic.status === "ERROR" && topic.generateError && (
-                        <p className="mt-1 text-xs font-normal text-destructive">
-                          {topic.generateError}
-                        </p>
-                      )}
-                    </TableCell>
+        <AnimatedTableBody>
+          <AnimatePresence initial={false}>
+            {topics.map((topic) => {
+              const isGenerating =
+                generatingId === topic.id || topic.status === "GENERATING"
 
-                    <TableCell className="text-muted-foreground">
-                      <span className="line-clamp-2">{topic.angle}</span>
-                    </TableCell>
+              return (
+                <AnimatedTableRow
+                  key={topic.id}
+                  layout
+                  className={cn(
+                    ROW_LAYOUT,
+                    "border-b transition-colors hover:bg-muted/40 [&>td]:py-3"
+                  )}
+                >
+                  {/* Issue and angle are the two columns read as prose, so they
+                      keep a left ragged-right edge rather than centring. */}
+                  <TableCell className="whitespace-normal text-left! font-medium">
+                    <span className="line-clamp-2">{topic.issue}</span>
+                    {topic.status === "ERROR" && topic.generateError && (
+                      <p className="mt-1 text-xs font-normal text-destructive">
+                        {topic.generateError}
+                      </p>
+                    )}
+                  </TableCell>
 
-                    <TableCell>
-                      <TopicStatusBadge status={topic.status} />
-                    </TableCell>
+                  <TableCell className="whitespace-normal text-left! text-muted-foreground">
+                    <span className="line-clamp-2">{topic.angle}</span>
+                  </TableCell>
 
-                    <TableCell className="text-right">
-                      <Tooltip>
-                        <TooltipTrigger
+                  <TableCell>
+                    <TopicStatusBadge status={topic.status} />
+                  </TableCell>
+
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <span className="cursor-default tabular-nums" />
+                        }
+                      >
+                        {topic.timesUsed}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        How many scripts have been generated from this topic
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+
+                  <TableCell className="truncate text-muted-foreground">
+                    {topic.lastUsedAt ? formatRelative(topic.lastUsedAt) : "—"}
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onGenerate(topic)}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Sparkles />
+                        )}
+                        {isGenerating ? "Generating" : "Generate"}
+                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
                           render={
-                            <span className="cursor-default tabular-nums" />
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="More actions"
+                            />
                           }
                         >
-                          {topic.timesUsed}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          How many scripts have been generated from this topic
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground">
-                      {topic.lastUsedAt ? formatRelative(topic.lastUsedAt) : "—"}
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onGenerate(topic)}
-                          disabled={isGenerating}
-                        >
-                          {isGenerating ? (
-                            <Loader2 className="animate-spin" />
-                          ) : (
-                            <Sparkles />
-                          )}
-                          {isGenerating ? "Generating" : "Generate"}
-                        </Button>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="More actions"
-                              />
-                            }
+                          <MoreHorizontal />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit(topic)}>
+                            <Pencil />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => onDelete(topic)}
                           >
-                            <MoreHorizontal />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onEdit(topic)}>
-                              <Pencil />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => onDelete(topic)}
-                            >
-                              <Trash2 />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </AnimatedTableRow>
-                )
-              })}
-            </AnimatePresence>
-          </AnimatedTableBody>
-        </Table>
-      </div>
+                            <Trash2 />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </AnimatedTableRow>
+              )
+            })}
+          </AnimatePresence>
+        </AnimatedTableBody>
+      </Table>
     </div>
   )
 }
