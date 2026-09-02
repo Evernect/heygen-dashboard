@@ -59,18 +59,14 @@ export function TopicsTable({
 }) {
   return (
     <div className="overflow-hidden rounded-xl border">
-      {/* min-width is the point below which the action buttons would no longer
-          fit their column, so the container scrolls instead of crushing them. */}
-      <Table className="min-w-5xl table-fixed">
-        {/* Column widths live here rather than on the header cells, so the
-            header and body share one definition of the grid. */}
+      <Table className="min-w-[700px] table-fixed">
         <colgroup>
-          <col className="w-[24%]" />
-          <col className="w-[24%]" />
-          <col className="w-[13%]" />
+          <col className="w-[21%]" />
+          <col className="w-[21%]" />
+          <col className="w-[12%]" />
           <col className="w-[7%]" />
-          <col className="w-[14%]" />
-          <col className="w-[18%]" />
+          <col className="w-[20%]" />
+          <col className="w-[19%]" />
         </colgroup>
 
         <TableHeader>

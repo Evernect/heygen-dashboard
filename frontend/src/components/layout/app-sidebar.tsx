@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, useReducedMotion } from "framer-motion"
-import { Video } from "lucide-react"
+import { Clapperboard } from "lucide-react"
 
 import {
   Sidebar,
@@ -33,19 +33,17 @@ export function AppSidebar() {
             <SidebarMenuButton
               size="lg"
               render={<Link href="/approvals" />}
-              tooltip="Video Automation"
+              tooltip="ReelFlow"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Video className="size-4" />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[image:var(--brand-gradient)] text-primary-foreground shadow-sm">
+                <Clapperboard className="size-4" />
               </div>
-              <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-sm font-semibold">
-                  Video Automation
+              <span className="truncate pr-1 text-xl font-extrabold tracking-tight text-foreground">
+                Reel
+                <span className="bg-[image:var(--brand-gradient-text)] bg-clip-text pr-0.5 italic text-transparent">
+                  Flow
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  Campaign pipeline
-                </span>
-              </div>
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
