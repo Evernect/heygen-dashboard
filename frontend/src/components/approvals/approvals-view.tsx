@@ -94,7 +94,7 @@ export function ApprovalsView() {
         title="Approvals"
         description="Review generated scripts, then approve and schedule them."
         action={
-          <LinkButton variant="outline" href="/content-bank">
+          <LinkButton variant="brand" href="/content-bank">
             <Sparkles />
             Generate a script
           </LinkButton>
@@ -105,7 +105,7 @@ export function ApprovalsView() {
         value={tab}
         onValueChange={(value) => setTab(value as TabValue)}
       >
-        <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsList className="mx-auto max-w-full justify-start overflow-x-auto overflow-y-hidden">
           {APPROVAL_TABS.map((entry) => (
             <TabsTrigger key={entry.value} value={entry.value}>
               {entry.label}

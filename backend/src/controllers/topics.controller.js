@@ -16,24 +16,59 @@ const createTopicSchema = z.object({
 
 const updateTopicSchema = createTopicSchema.partial()
 
+const MAX_BULK_ROWS = 200
+
+const bulkCreateTopicsSchema = z.object({
+  topics: z
+    .array(createTopicSchema)
+    .min(1, "Provide at least one topic")
+    .max(MAX_BULK_ROWS, `Cannot import more than ${MAX_BULK_ROWS} topics at once`),
+})
+
+const DEFAULT_TOPICS_PAGE_SIZE = 20
+
 const listTopicsQuerySchema = z.object({
   status: z.enum(TOPIC_STATUSES).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(DEFAULT_TOPICS_PAGE_SIZE),
 })
 
 async function listTopics(req, res) {
-  const { status } = req.validatedQuery ?? {}
+  const {
+    status,
+    page = 1,
+    pageSize = DEFAULT_TOPICS_PAGE_SIZE,
+  } = req.validatedQuery ?? {}
 
-  const topics = await prisma.topic.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { createdAt: "desc" },
-  })
+  const where = status ? { status } : undefined
 
-  res.json(topics)
+  const [topics, total] = await prisma.$transaction([
+    prisma.topic.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.topic.count({ where }),
+  ])
+
+  res.json({ topics, total, page, pageSize })
 }
 
 async function createTopic(req, res) {
   const topic = await prisma.topic.create({ data: req.body })
   res.status(201).json(topic)
+}
+
+async function bulkCreateTopics(req, res) {
+  const created = await prisma.topic.createManyAndReturn({ data: req.body.topics })
+  res.status(201).json({ created, count: created.length })
 }
 
 async function updateTopic(req, res) {
@@ -128,8 +163,14 @@ async function generateFromTopic(req, res) {
 module.exports = {
   listTopics,
   createTopic,
+  bulkCreateTopics,
   updateTopic,
   deleteTopic,
   generateFromTopic,
-  schemas: { createTopicSchema, updateTopicSchema, listTopicsQuerySchema },
+  schemas: {
+    createTopicSchema,
+    bulkCreateTopicsSchema,
+    updateTopicSchema,
+    listTopicsQuerySchema,
+  },
 }

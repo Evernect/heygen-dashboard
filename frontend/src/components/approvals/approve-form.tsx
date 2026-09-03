@@ -12,19 +12,6 @@ import { useNow } from "@/hooks/use-now"
 import type { Platform } from "@/lib/types/platform"
 import type { Script } from "@/lib/types/script"
 
-const QUICK_SLOTS = [
-  { label: "Tomorrow, 9:00 AM", hour: 9 },
-  { label: "Tomorrow, 2:00 PM", hour: 14 },
-  { label: "Tomorrow, 8:00 PM", hour: 20 },
-]
-
-function tomorrowAt(hour: number) {
-  const date = new Date()
-  date.setDate(date.getDate() + 1)
-  date.setHours(hour, 0, 0, 0)
-  return date
-}
-
 export function ApproveForm({
   script,
   isSubmitting,
@@ -63,20 +50,6 @@ export function ApproveForm({
           onChange={setScheduledAt}
           disabled={isSubmitting}
         />
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_SLOTS.map((slot) => (
-            <Button
-              key={slot.label}
-              type="button"
-              variant="outline"
-              size="xs"
-              disabled={isSubmitting}
-              onClick={() => setScheduledAt(tomorrowAt(slot.hour))}
-            >
-              {slot.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       <div className="space-y-3">

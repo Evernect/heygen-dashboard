@@ -44,12 +44,12 @@ export function ApprovalsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-56">Title</TableHead>
-              <TableHead className="min-w-48">Issue</TableHead>
-              <TableHead className="w-36">Status</TableHead>
-              <TableHead className="min-w-44">Platforms</TableHead>
-              <TableHead className="w-44">Scheduled</TableHead>
-              <TableHead className="w-20 text-right">Actions</TableHead>
+              <TableHead className="min-w-56 text-center">Title</TableHead>
+              <TableHead className="min-w-48 text-center">Issue</TableHead>
+              <TableHead className="w-36 text-center">Status</TableHead>
+              <TableHead className="min-w-44 text-center">Platforms</TableHead>
+              <TableHead className="w-44 text-center">Scheduled</TableHead>
+              <TableHead className="w-20 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -62,30 +62,36 @@ export function ApprovalsTable({
                   onClick={() => onOpen(script)}
                   className="cursor-pointer border-b transition-colors hover:bg-muted/40"
                 >
-                  <TableCell className="font-medium">{script.title}</TableCell>
+                  <TableCell className="text-center font-medium">
+                    {script.title}
+                  </TableCell>
 
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-center text-muted-foreground">
                     <span className="line-clamp-1">
                       {script.topic?.issue ?? "—"}
                     </span>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-center">
                     <ScriptStatusBadge status={script.status} />
                   </TableCell>
 
-                  <TableCell>
-                    <PlatformBadgeList platforms={script.targetPlatforms} />
+                  <TableCell className="text-center">
+                    <PlatformBadgeList
+                      platforms={script.targetPlatforms}
+                      className="justify-center"
+                      max={5}
+                      short
+                    />
                   </TableCell>
 
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-center text-muted-foreground">
                     {script.scheduledAt ? formatDateTime(script.scheduledAt) : "—"}
                   </TableCell>
 
                   <TableCell>
-                    {/* Stops the row's open-detail handler firing twice. */}
                     <div
-                      className="flex justify-end"
+                      className="flex justify-center"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <DropdownMenu>

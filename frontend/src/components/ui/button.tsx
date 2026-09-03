@@ -11,6 +11,8 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        brand:
+          "border-[color-mix(in_oklch,var(--brand-blue),transparent_65%)] bg-background text-[var(--brand-blue-dark)] hover:border-[color-mix(in_oklch,var(--brand-pink),transparent_55%)] hover:bg-[color-mix(in_oklch,var(--brand-pink),var(--background)_88%)] hover:text-[var(--brand-pink-dark)] aria-expanded:border-[color-mix(in_oklch,var(--brand-pink),transparent_55%)] aria-expanded:bg-[color-mix(in_oklch,var(--brand-pink),var(--background)_88%)] aria-expanded:text-[var(--brand-pink-dark)] dark:border-[color-mix(in_oklch,var(--brand-blue),transparent_50%)] dark:bg-input/30 dark:text-[var(--brand-blue)] dark:hover:border-[color-mix(in_oklch,var(--brand-pink),transparent_40%)] dark:hover:bg-[color-mix(in_oklch,var(--brand-pink),transparent_85%)] dark:hover:text-[var(--brand-pink)]",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

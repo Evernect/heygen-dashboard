@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, useReducedMotion } from "framer-motion"
-import { Clapperboard } from "lucide-react"
 
 import {
   Sidebar,
@@ -34,11 +33,19 @@ export function AppSidebar() {
               size="lg"
               render={<Link href="/approvals" />}
               tooltip="ReelFlow"
+              className="justify-center"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[image:var(--brand-gradient)] text-primary-foreground shadow-sm">
-                <Clapperboard className="size-4" />
-              </div>
-              <span className="truncate pr-1 text-xl font-extrabold tracking-tight text-foreground">
+              <motion.div
+                className="hidden aspect-square size-8 items-center justify-center rounded-lg bg-[image:var(--brand-gradient-text)] shadow-sm group-data-[collapsible=icon]:flex"
+                whileHover={reduceMotion ? undefined : { rotate: -10, scale: 1.1 }}
+                whileTap={reduceMotion ? undefined : { rotate: 0, scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 12 }}
+              >
+                <span className="text-sm font-extrabold italic leading-none text-white">
+                  RF
+                </span>
+              </motion.div>
+              <span className="truncate text-xl font-extrabold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
                 Reel
                 <span className="bg-[image:var(--brand-gradient-text)] bg-clip-text pr-0.5 italic text-transparent">
                   Flow
@@ -78,7 +85,9 @@ export function AppSidebar() {
                       tooltip={item.title}
                       render={<Link href={item.href} />}
                       className={cn(
-                        "relative z-10",
+                        // Selected row keeps a neutral pill; only its icon picks
+                        // up the accent, so the rail reads at a glance.
+                        "relative z-10 data-active:[&_svg]:text-primary",
                         isActive && !reduceMotion && "bg-transparent!"
                       )}
                     >

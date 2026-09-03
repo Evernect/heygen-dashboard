@@ -5,16 +5,28 @@ import { CalendarClock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useNow } from "@/hooks/use-now"
 import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
+
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"))
+const MINUTES = Array.from({ length: 12 }, (_, i) =>
+  String(i * 5).padStart(2, "0")
+)
+const PERIODS = ["AM", "PM"] as const
 
 export function ScheduleDateTimePicker({
   value,
@@ -45,6 +57,22 @@ export function ScheduleDateTimePicker({
   function handleTimeChange(nextTime: string) {
     setTime(nextTime)
     if (value && nextTime) onChange(combine(value, nextTime))
+  }
+
+  const { hour, minute, period } = to12Hour(time)
+
+  function handlePartChange(
+    part: "hour" | "minute" | "period",
+    next: string | null
+  ) {
+    if (!next) return
+    handleTimeChange(
+      to24Hour(
+        part === "hour" ? next : hour,
+        part === "minute" ? next : minute,
+        part === "period" ? (next as "AM" | "PM") : period
+      )
+    )
   }
 
   const isPast = value ? value.getTime() <= now : false
@@ -85,15 +113,58 @@ export function ScheduleDateTimePicker({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="schedule-time">Time</Label>
-        <Input
-          id="schedule-time"
-          type="time"
-          value={time}
-          disabled={disabled}
-          onChange={(event) => handleTimeChange(event.target.value)}
-          className="w-full sm:w-32"
-        />
+        <Label htmlFor="schedule-time-hour">Time</Label>
+        <div id="schedule-time-hour" className="flex items-center gap-1.5">
+          <Select
+            value={hour}
+            onValueChange={(next) => handlePartChange("hour", next)}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-16" aria-label="Hour">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-48">
+              {HOURS.map((h) => (
+                <SelectItem key={h} value={h}>
+                  {h}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-muted-foreground">:</span>
+          <Select
+            value={minute}
+            onValueChange={(next) => handlePartChange("minute", next)}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-16" aria-label="Minute">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-48">
+              {MINUTES.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={period}
+            onValueChange={(next) => handlePartChange("period", next)}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-17" aria-label="AM or PM">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isPast && (
@@ -122,4 +193,23 @@ function startOfDay(timestamp: number) {
   const date = new Date(timestamp)
   date.setHours(0, 0, 0, 0)
   return date
+}
+
+function to12Hour(time: string) {
+  const [hours24, minutes] = time.split(":").map(Number)
+  const period = hours24 >= 12 ? "PM" : "AM"
+  const hour12 = hours24 % 12 || 12
+  // Snap to the nearest 5-minute step so the value always matches a select option.
+  const roundedMinute = Math.round((minutes || 0) / 5) * 5
+  return {
+    hour: String(hour12).padStart(2, "0"),
+    minute: String(roundedMinute % 60).padStart(2, "0"),
+    period,
+  } as const
+}
+
+function to24Hour(hour12: string, minute: string, period: "AM" | "PM") {
+  let hours24 = Number(hour12) % 12
+  if (period === "PM") hours24 += 12
+  return `${String(hours24).padStart(2, "0")}:${minute}`
 }

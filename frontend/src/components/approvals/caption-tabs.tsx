@@ -60,7 +60,7 @@ export function CaptionTabs({
 }) {
   return (
     <Tabs defaultValue={CAPTION_TABS[0].field}>
-      <TabsList className="w-full justify-start overflow-x-auto">
+      <TabsList className="mx-auto max-w-full justify-start overflow-x-auto overflow-y-hidden">
         {CAPTION_TABS.map(({ field, platform }) => (
           <TabsTrigger key={field} value={field}>
             {PLATFORM_META[platform].label}

@@ -20,6 +20,12 @@ router.post(
   asyncHandler(controller.createTopic)
 )
 
+router.post(
+  "/bulk",
+  validate(controller.schemas.bulkCreateTopicsSchema),
+  asyncHandler(controller.bulkCreateTopics)
+)
+
 router.patch(
   "/:id",
   validate(controller.schemas.updateTopicSchema),

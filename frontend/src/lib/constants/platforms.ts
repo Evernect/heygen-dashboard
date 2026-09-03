@@ -24,7 +24,7 @@ export const PLATFORM_META: Record<Platform, PlatformMeta> = {
   },
   TIKTOK: {
     label: "TikTok",
-    short: "TT",
+    short: "Tiktok",
     dotClassName: "bg-[oklch(0.65_0.16_185)]",
   },
   X: {

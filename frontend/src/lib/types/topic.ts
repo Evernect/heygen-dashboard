@@ -26,3 +26,15 @@ export interface CreateTopicInput {
 }
 
 export type UpdateTopicInput = Partial<CreateTopicInput>
+
+export interface BulkCreateTopicsResponse {
+  created: Topic[]
+  count: number
+}
+
+export interface PaginatedTopics {
+  topics: Topic[]
+  total: number
+  page: number
+  pageSize: number
+}

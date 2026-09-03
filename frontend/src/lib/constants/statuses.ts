@@ -72,6 +72,13 @@ export const TOPIC_STATUS_META: Record<TopicStatus, StatusMeta> = {
   },
 }
 
+export const TOPIC_TABS: { value: TopicStatus | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "IDLE", label: "Idle" },
+  { value: "GENERATED", label: "Generated" },
+  { value: "ERROR", label: "Error" },
+]
+
 export const APPROVAL_TABS: { value: ScriptStatus | "ALL"; label: string }[] = [
   { value: "PENDING_REVIEW", label: "Pending" },
   { value: "APPROVED", label: "Scheduled" },

@@ -23,6 +23,13 @@
     #6b7ff0 50%,
     #d060e0 100%
   );
+  /* Icon mark only: pink top-left, blue center, light green bottom-right */
+  --brand-icon-gradient: linear-gradient(
+    135deg,
+    #fbcfe8 0%,
+    #22d3ee 50%,
+    #86efac 100%
+  );
 
   --background: #ffffff;
   --foreground: #1a1a1a;
@@ -83,39 +90,47 @@
   --status-failed: #e40014;
   --status-failed-foreground: #bf000f;
 
+  /* Selected tab pill — a lifted surface, never a black hole */
+  --tab-active: #ffffff;
+  --tab-active-ring: oklch(0 0 0 / 0.08);
+
   --scrollbar-thumb: oklch(0 0 0 / 0.2);
   --scrollbar-thumb-hover: oklch(0 0 0 / 0.35);
 }
 
+/* Dark theme reads as three near-black planes — chrome, page, panel — lit only
+   by the cyan accent, the way HeyGen's product surfaces are built. */
 .dark {
   --brand-gradient-text: var(--brand-gradient);
 
-  --background: #151517;
-  --foreground: #f1f0ec;
+  --background: #0d0d0f;
+  --foreground: #ededf0;
 
-  --card: #1a1a1a;
-  --card-foreground: #f1f0ec;
+  --card: #161619;
+  --card-foreground: #ededf0;
 
-  --popover: #1f1f22;
-  --popover-foreground: #f1f0ec;
+  --popover: #1a1a1e;
+  --popover-foreground: #ededf0;
 
   --primary: #00c3ff;
-  --primary-foreground: #033337;
+  --primary-foreground: #04212b;
 
-  --secondary: #262626;
-  --secondary-foreground: #f1f0ec;
+  --secondary: #202024;
+  --secondary-foreground: #ededf0;
 
-  --muted: #262626;
-  --muted-foreground: #99a1af;
+  --muted: #1c1c20;
+  --muted-foreground: #8b8b96;
 
-  --accent: #033337;
-  --accent-foreground: #dff8ff;
+  /* Hover/active surfaces stay neutral grey; cyan is reserved for the thing
+     actually selected, so it keeps its signal. */
+  --accent: #26262c;
+  --accent-foreground: #ffffff;
 
   --destructive: #ff6568;
-  --destructive-foreground: #1a1a1a;
+  --destructive-foreground: #16161a;
 
-  --border: oklch(1 0 0 / 0.1);
-  --input: oklch(1 0 0 / 0.15);
+  --border: oklch(1 0 0 / 0.08);
+  --input: oklch(1 0 0 / 0.14);
   --ring: #00c3ff;
 
   --chart-1: #00c3ff;
@@ -124,13 +139,13 @@
   --chart-4: #ff8e1c;
   --chart-5: #f3a6ff;
 
-  --sidebar: #1a1a1a;
-  --sidebar-foreground: #f1f0ec;
+  --sidebar: #08080a;
+  --sidebar-foreground: #c9c9d1;
   --sidebar-primary: #00c3ff;
-  --sidebar-primary-foreground: #033337;
-  --sidebar-accent: #033337;
-  --sidebar-accent-foreground: #dff8ff;
-  --sidebar-border: oklch(1 0 0 / 0.1);
+  --sidebar-primary-foreground: #04212b;
+  --sidebar-accent: #1e1e23;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: oklch(1 0 0 / 0.06);
   --sidebar-ring: #00c3ff;
 
   --status-pending: #ff8e1c;
@@ -145,6 +160,11 @@
   --status-rejected-foreground: #ffaaab;
   --status-failed: #fb2c36;
   --status-failed-foreground: #ff9296;
+
+  /* Sits well clear of the page and the strip behind it, so the selected tab
+     reads as raised rather than as a hole punched in the strip. */
+  --tab-active: #34343d;
+  --tab-active-ring: oklch(1 0 0 / 0.12);
 
   --scrollbar-thumb: oklch(1 0 0 / 0.18);
   --scrollbar-thumb-hover: oklch(1 0 0 / 0.32);
@@ -201,6 +221,8 @@
   --color-status-rejected-foreground: var(--status-rejected-foreground);
   --color-status-failed: var(--status-failed);
   --color-status-failed-foreground: var(--status-failed-foreground);
+
+  --color-tab-active: var(--tab-active);
 
   /* One source of truth for corner sizes, scaled off --radius */
   --radius-sm: calc(var(--radius) * 0.6);
