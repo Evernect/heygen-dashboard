@@ -40,7 +40,6 @@ export function ScheduleDateTimePicker({
   const [open, setOpen] = React.useState(false)
   const now = useNow()
 
-  // Time lives as a string so a half-typed "1" doesn't reset the date.
   const [time, setTime] = React.useState(() =>
     value ? toTimeString(value) : "09:00"
   )
@@ -104,7 +103,6 @@ export function ScheduleDateTimePicker({
               mode="single"
               selected={value ?? undefined}
               onSelect={handleDateSelect}
-              // Nothing can be scheduled into the past.
               disabled={{ before: earliestDay }}
               autoFocus
             />
@@ -199,7 +197,6 @@ function to12Hour(time: string) {
   const [hours24, minutes] = time.split(":").map(Number)
   const period = hours24 >= 12 ? "PM" : "AM"
   const hour12 = hours24 % 12 || 12
-  // Snap to the nearest 5-minute step so the value always matches a select option.
   const roundedMinute = Math.round((minutes || 0) / 5) * 5
   return {
     hour: String(hour12).padStart(2, "0"),

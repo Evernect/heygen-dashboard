@@ -41,7 +41,6 @@ export const INSIGHT_CATEGORIES = [
 export type InsightCategory = (typeof INSIGHT_CATEGORIES)[number]
 export type InsightConfidence = "low" | "medium" | "high"
 
-// An LLM-produced observation over aggregated post performance
 export interface Insight {
   id: string
   category: InsightCategory

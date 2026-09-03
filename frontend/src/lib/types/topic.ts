@@ -7,7 +7,6 @@ export const TOPIC_STATUSES = [
 
 export type TopicStatus = (typeof TOPIC_STATUSES)[number]
 
-// A row in the content bank
 export interface Topic {
   id: string
   issue: string

@@ -30,7 +30,6 @@ export function TableSkeleton({
                 className={cn(
                   "h-4",
                   columnIndex === 0 ? "w-56" : "w-20",
-                  // Slight width jitter reads as content rather than a grid.
                   columnIndex === columns - 1 && "w-16"
                 )}
                 style={{ opacity: 1 - rowIndex * 0.08 }}

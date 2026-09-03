@@ -41,7 +41,7 @@ export function AppSidebar() {
                 whileTap={reduceMotion ? undefined : { rotate: 0, scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 400, damping: 12 }}
               >
-                <span className="text-sm font-extrabold italic leading-none text-white">
+                <span className="-translate-x-[0.09em] text-sm font-extrabold italic leading-none text-white">
                   RF
                 </span>
               </motion.div>
@@ -67,8 +67,6 @@ export function AppSidebar() {
 
                 return (
                   <SidebarMenuItem key={item.href} className="relative">
-                    {/* Shared layoutId slides the highlight between items
-                        instead of cross-fading two separate backgrounds. */}
                     {isActive && !reduceMotion && (
                       <motion.span
                         layoutId="sidebar-active-item"
@@ -85,8 +83,6 @@ export function AppSidebar() {
                       tooltip={item.title}
                       render={<Link href={item.href} />}
                       className={cn(
-                        // Selected row keeps a neutral pill; only its icon picks
-                        // up the accent, so the rail reads at a glance.
                         "relative z-10 data-active:[&_svg]:text-primary",
                         isActive && !reduceMotion && "bg-transparent!"
                       )}

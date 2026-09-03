@@ -105,8 +105,6 @@ export function ScriptDetailDialog({
 
     setIsSubmitting(true)
     try {
-      // Persist any pending edits first so the approved script is what the
-      // reviewer actually sees on screen.
       if (isDirty && draft) await updateScript(script.id, draft)
 
       await approveScript(script.id, {

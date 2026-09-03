@@ -32,7 +32,6 @@ export function ApproveForm({
     script.scheduledAt ? new Date(script.scheduledAt) : null
   )
   const [platforms, setPlatforms] = React.useState<Platform[]>(
-    // Fall back to the platforms the model suggested for this script.
     script.targetPlatforms.length ? script.targetPlatforms : ["FACEBOOK"]
   )
 

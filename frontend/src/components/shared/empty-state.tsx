@@ -37,7 +37,6 @@ export function EmptyState({
   )
 }
 
-/** Error twin of EmptyState — same shape, destructive tint. */
 export function ErrorState({
   icon: Icon,
   title,

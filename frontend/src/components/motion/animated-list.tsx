@@ -33,7 +33,6 @@ export function AnimatedList({
   )
 }
 
-/** A single item inside {@link AnimatedList}. */
 export function AnimatedItem({
   children,
   className,
@@ -52,7 +51,6 @@ export function AnimatedItem({
   )
 }
 
-/** Table-body twin of AnimatedList — `tbody` can't be swapped for a div. */
 export function AnimatedTableBody({
   children,
   className,
@@ -77,10 +75,6 @@ export function AnimatedTableBody({
   )
 }
 
-/**
- * A staggered table row. `exit` is defined so an AnimatePresence parent can
- * slide a row out when it leaves the active filter.
- */
 export function AnimatedTableRow({
   children,
   className,

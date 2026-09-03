@@ -35,12 +35,6 @@ import { formatRelative } from "@/lib/format"
 import type { Topic } from "@/lib/types/topic"
 import { cn } from "@/lib/utils"
 
-/**
- * One layout rule for the whole grid: every cell gets the same horizontal
- * padding and the same centred alignment, and the outer two align with the
- * card edge. Applied to the header row and to each body row so the two can't
- * drift out of step. Individual cells opt out of the centring with `text-*!`.
- */
 const ROW_LAYOUT =
   "[&>*]:px-3 [&>*]:text-center [&>*:first-child]:pl-4 [&>*:last-child]:pr-4"
 
@@ -95,8 +89,6 @@ export function TopicsTable({
                     "border-b transition-colors hover:bg-muted/40 [&>td]:py-3"
                   )}
                 >
-                  {/* Issue and angle are the two columns read as prose, so they
-                      keep a left ragged-right edge rather than centring. */}
                   <TableCell className="whitespace-normal text-left! font-medium">
                     <span className="line-clamp-2">{topic.issue}</span>
                     {topic.status === "ERROR" && topic.generateError && (

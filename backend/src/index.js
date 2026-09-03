@@ -8,6 +8,7 @@ const { errorHandler, notFoundHandler } = require("./middleware/error-handler")
 const cronRoutes = require("./routes/cron.routes")
 const metricsRoutes = require("./routes/metrics.routes")
 const scriptsRoutes = require("./routes/scripts.routes")
+const settingsRoutes = require("./routes/settings.routes")
 const topicsRoutes = require("./routes/topics.routes")
 const { logger } = require("./utils/logger")
 
@@ -28,6 +29,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/topics", topicsRoutes)
 app.use("/api/scripts", scriptsRoutes)
+app.use("/api/settings", settingsRoutes)
 app.use("/api/cron", cronRoutes)
 app.use("/api", metricsRoutes)
 

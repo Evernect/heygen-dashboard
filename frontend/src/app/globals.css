@@ -16,14 +16,12 @@
   --brand-pink-light: #f9ecff;
   --brand-pink-dark: #3e2b4e;
   --brand-gradient: linear-gradient(328deg, #00c3ff 0%, #95aafe 50%, #fea5fe 100%);
-  /* Same sweep, darkened so it still carries on a white ground */
   --brand-gradient-text: linear-gradient(
     328deg,
-    #0090c4 0%,
-    #6b7ff0 50%,
-    #d060e0 100%
+    #0077a8 0%,
+    #5566d8 50%,
+    #b03fc0 100%
   );
-  /* Icon mark only: pink top-left, blue center, light green bottom-right */
   --brand-icon-gradient: linear-gradient(
     135deg,
     #fbcfe8 0%,
@@ -31,75 +29,70 @@
     #86efac 100%
   );
 
-  --background: #ffffff;
-  --foreground: #1a1a1a;
+  --background: #f6f7fa;
+  --foreground: #16171a;
 
   --card: #ffffff;
-  --card-foreground: #1a1a1a;
+  --card-foreground: #16171a;
 
   --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
+  --popover-foreground: #16171a;
 
   --primary: #00c3ff;
-  --primary-foreground: #033337;
+  --primary-foreground: #04212b;
 
-  --secondary: #f2f2f2;
-  --secondary-foreground: #1a1a1a;
+  --secondary: #eceef3;
+  --secondary-foreground: #16171a;
 
-  --muted: #f2f2f2;
-  --muted-foreground: #6a7282;
+  --muted: #edeff4;
+  --muted-foreground: #676a75;
 
-  --accent: #dff8ff;
-  --accent-foreground: #033337;
+  --accent: #e5e8ef;
+  --accent-foreground: #16171a;
 
-  --destructive: #fb2c36;
+  --destructive: #d1101c;
   --destructive-foreground: #ffffff;
 
-  --border: #d9d9d9;
-  --input: #d9d9d9;
+  --border: oklch(0 0 0 / 0.1);
+  --input: oklch(0 0 0 / 0.16);
   --ring: #00c3ff;
 
-  /* Charts — the brand hues, spaced far enough apart to stay tellable apart */
-  --chart-1: #00c3ff;
-  --chart-2: #00bb7f;
-  --chart-3: #8d54ff;
-  --chart-4: #ff8e1c;
-  --chart-5: #f3a6ff;
+  --chart-1: #009fd4;
+  --chart-2: #00996a;
+  --chart-3: #7a3fe6;
+  --chart-4: #de7400;
+  --chart-5: #cc63d9;
 
-  --sidebar: #fbfaf9;
-  --sidebar-foreground: #1a1a1a;
+  --sidebar: #eef0f5;
+  --sidebar-foreground: #3f424b;
   --sidebar-primary: #00c3ff;
-  --sidebar-primary-foreground: #033337;
-  --sidebar-accent: #dff8ff;
-  --sidebar-accent-foreground: #033337;
-  --sidebar-border: #d9d9d9;
+  --sidebar-primary-foreground: #04212b;
+  --sidebar-accent: #e2e5ed;
+  --sidebar-accent-foreground: #16171a;
+  --sidebar-border: oklch(0 0 0 / 0.07);
   --sidebar-ring: #00c3ff;
 
-  /* Status palette — the only place colour carries meaning. Each hue pairs a
-     pale surface with a deep ink of the same family, the way the brand does. */
   --status-pending: #ff8e1c;
-  --status-pending-foreground: #824405;
+  --status-pending-foreground: #96500a;
   --status-approved: #35c838;
-  --status-approved-foreground: #233717;
+  --status-approved-foreground: #1c7a2b;
   --status-processing: #8d54ff;
-  --status-processing-foreground: #3e2b4e;
+  --status-processing-foreground: #5b2ecc;
   --status-posted: #00c3ff;
-  --status-posted-foreground: #033337;
+  --status-posted-foreground: #036a8c;
   --status-rejected: #fb2c36;
-  --status-rejected-foreground: #bf000f;
+  --status-rejected-foreground: #b81420;
   --status-failed: #e40014;
-  --status-failed-foreground: #bf000f;
+  --status-failed-foreground: #a5101b;
 
-  /* Selected tab pill — a lifted surface, never a black hole */
   --tab-active: #ffffff;
-  --tab-active-ring: oklch(0 0 0 / 0.08);
+  --tab-active-shadow:
+    inset 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.12);
 
   --scrollbar-thumb: oklch(0 0 0 / 0.2);
   --scrollbar-thumb-hover: oklch(0 0 0 / 0.35);
 }
 
-/* Dark theme reads as three near-black planes — chrome, page, panel — lit only
-   by the cyan accent, the way HeyGen's product surfaces are built. */
 .dark {
   --brand-gradient-text: var(--brand-gradient);
 
@@ -121,8 +114,6 @@
   --muted: #1c1c20;
   --muted-foreground: #8b8b96;
 
-  /* Hover/active surfaces stay neutral grey; cyan is reserved for the thing
-     actually selected, so it keeps its signal. */
   --accent: #26262c;
   --accent-foreground: #ffffff;
 
@@ -161,10 +152,8 @@
   --status-failed: #fb2c36;
   --status-failed-foreground: #ff9296;
 
-  /* Sits well clear of the page and the strip behind it, so the selected tab
-     reads as raised rather than as a hole punched in the strip. */
   --tab-active: #34343d;
-  --tab-active-ring: oklch(1 0 0 / 0.12);
+  --tab-active-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12);
 
   --scrollbar-thumb: oklch(1 0 0 / 0.18);
   --scrollbar-thumb-hover: oklch(1 0 0 / 0.32);
@@ -224,7 +213,6 @@
 
   --color-tab-active: var(--tab-active);
 
-  /* One source of truth for corner sizes, scaled off --radius */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -248,7 +236,6 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Tabular figures keep metric columns from jittering as values change */
   .tabular-nums,
   th[data-numeric],
   td[data-numeric] {

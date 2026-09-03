@@ -19,7 +19,6 @@ export function ScriptBody({
   isEditing: boolean
 }) {
   const wordCount = countSpokenWords(value)
-  // The generation prompt targets 75-90 spoken words for a ~30s read.
   const isOffTarget = wordCount < 70 || wordCount > 95
 
   if (isEditing) {

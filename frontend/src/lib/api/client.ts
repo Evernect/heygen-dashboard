@@ -1,4 +1,3 @@
-// Thin fetch wrapper around the Express API.
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 export class ApiError extends Error {

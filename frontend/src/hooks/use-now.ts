@@ -27,11 +27,8 @@ function subscribe(listener: () => void) {
 
 const getSnapshot = () => now
 
-// The server has no meaningful "now" for the viewer. Epoch means nothing reads
-// as being in the past, which is the safe default for validation UI.
 const getServerSnapshot = () => 0
 
-/** @returns the current time as a timestamp, refreshed every 30 seconds. */
 export function useNow() {
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }

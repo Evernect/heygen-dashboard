@@ -8,7 +8,6 @@ export const PLATFORMS = [
 
 export type Platform = (typeof PLATFORMS)[number]
 
-// Per-platform publish record, one row per (script, platform)
 export type PlatformPostStatus = "pending" | "success" | "failed"
 
 export interface PlatformPost {

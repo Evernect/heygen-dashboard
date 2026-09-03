@@ -1,8 +1,22 @@
 "use strict"
 
-function buildScriptGenerationPrompt({ issue, angle }) {
+// ~150 spoken words per minute is the usual talking-head pace, so the word
+// range drives the runtime the script is written against.
+function estimateSeconds(words) {
+  return Math.max(10, Math.round((words / 150) * 60))
+}
+
+function buildScriptGenerationPrompt({
+  issue,
+  angle,
+  wordsMin = 75,
+  wordsMax = 90,
+}) {
+  const range = `${wordsMin}-${wordsMax}`
+  const seconds = estimateSeconds(wordsMax)
+
   return `# ROLE
-You write short-form, first-person talking-head scripts on public issues, plus matching social captions. The video is spoken directly to camera in a natural, conversational setting, and must run no longer than 30 seconds.
+You write short-form, first-person talking-head scripts on public issues, plus matching social captions. The video is spoken directly to camera in a natural, conversational setting, and must run no longer than ${seconds} seconds.
 
 # INPUT
 Issue: ${issue}
@@ -38,7 +52,7 @@ Cover exactly ONE issue, in this order:
 2. Briefly explain the issue.
 3. State the position or proposal from the angle, in first person.
 Constraints:
-- 75-90 spoken words, excluding SSML tags.
+- ${range} spoken words, excluding SSML tags.
 - Short sentences. Plain, conversational language. No jargon or formal phrasing.
 - No stage directions, emojis, or quotation marks.
 - No additional issues, and no statistics unless explicitly provided.
@@ -49,7 +63,7 @@ SSML PAUSES:
 - Guidance: use 0.2s or 0.3s for quick beats between short, punchy statements; 0.4s for a normal sentence break; 0.5s only for the heaviest pause, such as before the closing line or after a hard-hitting claim. Most breaks should be shorter than 0.5s.
 - Format exactly as <break time="0.3s"/> (seconds, one decimal, lowercase s). Do not invent other durations or units.
 - Do not wrap the script in <speak> tags. SSML appears in the script field only, never in captions or other fields.
-- Always end the script with something like: "Vote Ted Nordblum for State Assembly." This does not count toward the 75-90 word limit.
+- Always end the script with something like: "Vote Ted Nordblum for State Assembly." This does not count toward the ${range} word limit.
 
 Example pacing (pattern only, not content to reuse):
 Where is our money going? <break time="0.5s"/> The budget has quadrupled, <break time="0.2s"/> and nothing got better. <break time="0.4s"/> I want a real audit, <break time="0.3s"/> and I am going to fight for it. <break time="0.3s"/>
@@ -68,7 +82,7 @@ Applies to all five captions: plain text, no SSML, no emojis, no quotation marks
 - platforms - array containing only these lowercase values: facebook, instagram, youtube, tiktok, x.
 
 # CHECK BEFORE RETURNING
-- Script is 75-90 spoken words, covers one issue, opens on a hook, and states the position in first person.
+- Script is ${range} spoken words, covers one issue, opens on a hook, and states the position in first person.
 - Voice matches the STYLE section: direct address, blunt opener, plain language, no forced catchphrases.
 - Every sentence ends with a <break/>, pause lengths vary by pacing, every value is one of 0.2s / 0.3s / 0.4s / 0.5s, and none exceeds 0.5s. No other field contains SSML.
 - Breaks are not all the same value; most are below 0.5s.
@@ -77,49 +91,50 @@ Applies to all five captions: plain text, no SSML, no emojis, no quotation marks
 - No quotation marks or emojis anywhere in the output.`
 }
 
-const SCRIPT_OUTPUT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    title: {
-      type: "string",
-      description:
-        "Very short video title, keyword style. No punctuation, no hashtags.",
-    },
-    script: {
-      type: "string",
-      description:
-        '75-90 word spoken talking-head script with SSML <break time="0.5s"/> tags between sentences.',
-    },
-    facebook_caption: { type: "string" },
-    instagram_caption: { type: "string" },
-    youtube_caption: { type: "string" },
-    tiktok_caption: { type: "string" },
-    x_post_text: { type: "string" },
-    hashtags: {
-      type: "array",
-      items: { type: "string" },
-      description: "Relevant hashtags WITHOUT the # symbol.",
-    },
-    platforms: {
-      type: "array",
-      items: {
+function buildScriptOutputSchema({ wordsMin = 75, wordsMax = 90 } = {}) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      title: {
         type: "string",
-        enum: ["facebook", "instagram", "youtube", "tiktok", "x"],
+        description:
+          "Very short video title, keyword style. No punctuation, no hashtags.",
+      },
+      script: {
+        type: "string",
+        description: `${wordsMin}-${wordsMax} word spoken talking-head script with SSML <break time="0.5s"/> tags between sentences.`,
+      },
+      facebook_caption: { type: "string" },
+      instagram_caption: { type: "string" },
+      youtube_caption: { type: "string" },
+      tiktok_caption: { type: "string" },
+      x_post_text: { type: "string" },
+      hashtags: {
+        type: "array",
+        items: { type: "string" },
+        description: "Relevant hashtags WITHOUT the # symbol.",
+      },
+      platforms: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: ["facebook", "instagram", "youtube", "tiktok", "x"],
+        },
       },
     },
-  },
-  required: [
-    "title",
-    "script",
-    "facebook_caption",
-    "instagram_caption",
-    "youtube_caption",
-    "tiktok_caption",
-    "x_post_text",
-    "hashtags",
-    "platforms",
-  ],
+    required: [
+      "title",
+      "script",
+      "facebook_caption",
+      "instagram_caption",
+      "youtube_caption",
+      "tiktok_caption",
+      "x_post_text",
+      "hashtags",
+      "platforms",
+    ],
+  }
 }
 
-module.exports = { buildScriptGenerationPrompt, SCRIPT_OUTPUT_SCHEMA }
+module.exports = { buildScriptGenerationPrompt, buildScriptOutputSchema }

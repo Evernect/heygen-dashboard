@@ -2,12 +2,13 @@
 
 const OpenAI = require("openai")
 
-const { env, requireEnv } = require("../lib/env")
+const { requireEnv } = require("../lib/env")
+const { getSettings } = require("./settings.service")
 const { HttpError } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 const {
   buildScriptGenerationPrompt,
-  SCRIPT_OUTPUT_SCHEMA,
+  buildScriptOutputSchema,
 } = require("./prompts/script-generation.prompt")
 
 let client = null
@@ -20,7 +21,6 @@ function getClient() {
   return client
 }
 
-// Maps the model's lowercase platform strings onto the Platform enum
 function toPlatformEnum(platforms) {
   const allowed = new Set([
     "FACEBOOK",
@@ -39,28 +39,93 @@ function toPlatformEnum(platforms) {
   ]
 }
 
+// Which sampling and reasoning parameters a model accepts moves with every
+// release, and asking for an unsupported one is a hard 400 rather than a
+// warning. Rather than pin a capability table that silently goes stale, send
+// what the settings ask for and drop the rejected parameter on the retry.
+const UNSUPPORTED_PARAM = /Unsupported (parameter|value): '?(\w+)/i
+
+function rejectedParameter(error) {
+  const message = error?.message ?? ""
+  if (error?.status !== 400) return null
+
+  const match = message.match(UNSUPPORTED_PARAM)
+  if (match) return match[2]
+
+  if (/temperature/i.test(message)) return "temperature"
+  if (/reasoning/i.test(message)) return "reasoning"
+  return null
+}
+
+async function createWithFallback(openai, request) {
+  try {
+    return await openai.responses.create(request)
+  } catch (error) {
+    const rejected = rejectedParameter(error)
+
+    if (rejected === "temperature" && "temperature" in request) {
+      logger.warn(
+        `${request.model} rejected temperature; retrying without it. Turn it off in Settings to skip this round trip.`
+      )
+      const { temperature, ...rest } = request
+      return openai.responses.create(rest)
+    }
+
+    if (rejected === "reasoning" && "reasoning" in request) {
+      logger.warn(
+        `${request.model} rejected reasoning.effort; retrying without it.`
+      )
+      const { reasoning, ...rest } = request
+      return openai.responses.create(rest)
+    }
+
+    throw error
+  }
+}
+
 // Generates a script plus per-platform captions for one topic.
 async function generateScript({ issue, angle }) {
   const openai = getClient()
-  const prompt = buildScriptGenerationPrompt({ issue, angle })
+  const settings = await getSettings()
 
-  logger.info(`Generating script for issue: ${issue.slice(0, 80)}`)
+  const wordsMin = settings.targetWordsMin
+  const wordsMax = settings.targetWordsMax
 
-  let completion
-  try {
-    completion = await openai.chat.completions.create({
-      model: env.OPENAI_MODEL,
-      temperature: 0.5,
-      messages: [{ role: "user", content: prompt }],
-      response_format: {
+  const prompt = buildScriptGenerationPrompt({
+    issue,
+    angle,
+    wordsMin,
+    wordsMax,
+  })
+
+  logger.info(
+    `Generating script with ${settings.openaiModel} (${wordsMin}-${wordsMax} words) for issue: ${issue.slice(0, 80)}`
+  )
+
+  const request = {
+    model: settings.openaiModel,
+    input: prompt,
+    text: {
+      format: {
         type: "json_schema",
-        json_schema: {
-          name: "video_script",
-          strict: true,
-          schema: SCRIPT_OUTPUT_SCHEMA,
-        },
+        name: "video_script",
+        strict: true,
+        schema: buildScriptOutputSchema({ wordsMin, wordsMax }),
       },
-    })
+    },
+  }
+
+  if (settings.openaiSendTemperature) {
+    request.temperature = settings.openaiTemperature
+  }
+
+  if (settings.openaiReasoningEffort) {
+    request.reasoning = { effort: settings.openaiReasoningEffort }
+  }
+
+  let response
+  try {
+    response = await createWithFallback(openai, request)
   } catch (error) {
     logger.error("OpenAI request failed", error)
     throw new HttpError(
@@ -69,7 +134,7 @@ async function generateScript({ issue, angle }) {
     )
   }
 
-  const content = completion.choices?.[0]?.message?.content
+  const content = response.output_text
   if (!content) {
     throw new HttpError(502, "Script generation returned an empty response")
   }
@@ -94,4 +159,21 @@ async function generateScript({ issue, angle }) {
   }
 }
 
-module.exports = { generateScript }
+// GET /v1/models, narrowed to the text models worth picking for generation.
+async function listModels() {
+  const openai = getClient()
+  const page = await openai.models.list()
+
+  return page.data
+    .filter((model) => /^(gpt|o\d)/.test(model.id))
+    .filter(
+      (model) =>
+        !/(audio|realtime|transcribe|tts|image|embedding|moderation|search|dall-e|codex)/.test(
+          model.id
+        )
+    )
+    .map((model) => ({ id: model.id, created: model.created ?? null }))
+    .sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || a.id.localeCompare(b.id))
+}
+
+module.exports = { generateScript, listModels, rejectedParameter }

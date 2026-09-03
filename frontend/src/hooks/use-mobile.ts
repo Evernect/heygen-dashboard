@@ -11,7 +11,6 @@ function subscribe(onChange: () => void) {
 
 const getSnapshot = () => window.matchMedia(QUERY).matches
 
-// No viewport on the server; desktop is the safer default for layout.
 const getServerSnapshot = () => false
 
 export function useIsMobile() {

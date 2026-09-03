@@ -12,7 +12,6 @@ export const SCRIPT_STATUSES = [
 
 export type ScriptStatus = (typeof SCRIPT_STATUSES)[number]
 
-// A generated script plus its per-platform captions. 
 export interface Script {
   id: string
   topicId: string
@@ -48,7 +47,6 @@ export interface Script {
   updatedAt: string
 }
 
-// Fields the reviewer may lightly edit before approving
 export interface UpdateScriptInput {
   title?: string
   scriptText?: string

@@ -1,6 +1,5 @@
 import type { Transition, Variants } from "framer-motion"
 
-// Standard "ease-out expo"-ish curve: fast start, gentle settle
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const
 
 export const DURATION = {
@@ -40,7 +39,6 @@ export const scaleIn: Variants = {
   },
 }
 
-// Parent wrapper that cascades its children's entrance
 export const staggerContainer: Variants = {
   hidden: { opacity: 1 },
   visible: {
@@ -50,7 +48,6 @@ export const staggerContainer: Variants = {
   exit: { opacity: 1 },
 }
 
-// Row-level variant used inside a staggerContainer (tables, card grids)
 export const staggerItem: Variants = {
   hidden: { opacity: 0, y: 6 },
   visible: {

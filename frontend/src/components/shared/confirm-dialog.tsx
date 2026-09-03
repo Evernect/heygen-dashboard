@@ -34,7 +34,6 @@ export function ConfirmDialog({
   destructive?: boolean
   isPending?: boolean
   onConfirm: () => void | Promise<void>
-  /** Extra form content rendered between the description and the actions. */
   children?: React.ReactNode
 }) {
   return (
