@@ -43,7 +43,7 @@ export function ApproveForm({
       <Separator />
 
       <div className="space-y-3">
-        <Label>Schedule</Label>
+        <Label>Upload time</Label>
         <ScheduleDateTimePicker
           value={scheduledAt}
           onChange={setScheduledAt}
@@ -65,6 +65,11 @@ export function ApproveForm({
 
       <Separator />
 
+      <p className="text-xs text-muted-foreground">
+        Nothing is uploaded until you approve. Disapproving keeps the topic
+        open, so a different script can be picked and rendered instead.
+      </p>
+
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button
           variant="destructive"
@@ -84,7 +89,7 @@ export function ApproveForm({
           ) : (
             <CircleCheck />
           )}
-          Approve &amp; schedule
+          Approve &amp; upload at this time
         </Button>
       </div>
     </div>

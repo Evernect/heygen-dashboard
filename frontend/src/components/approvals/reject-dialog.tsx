@@ -46,12 +46,18 @@ export function RejectDialog({
     }
   }
 
+  const hasVideo = Boolean(script?.videoStorageUrl)
+
   return (
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Disapprove this script?"
-      description="It won't be rendered or published. You can approve it later if you change your mind."
+      title={hasVideo ? "Disapprove this video?" : "Disapprove this script?"}
+      description={
+        hasVideo
+          ? "It won't be uploaded anywhere. The topic's other scripts stay available, so you can pick a different one and render it instead."
+          : "It won't be rendered or uploaded. The topic's other scripts stay available to pick from."
+      }
       confirmLabel="Disapprove"
       destructive
       isPending={isPending || reason.trim().length === 0}

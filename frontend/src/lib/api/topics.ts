@@ -39,6 +39,8 @@ export function deleteTopic(id: string) {
   return api.delete<void>(`api/topics/${id}`)
 }
 
-export function generateScriptFromTopic(id: string) {
-  return api.post<Script>(`api/topics/${id}/generate`)
+export function generateScriptsFromTopic(id: string) {
+  return api.post<{ scripts: Script[]; count: number }>(
+    `api/topics/${id}/generate`
+  )
 }

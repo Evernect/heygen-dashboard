@@ -17,12 +17,6 @@ router.patch(
 )
 
 router.get(
-  "/heygen/avatars",
-  validate(controller.schemas.heygenListQuerySchema, "query"),
-  asyncHandler(controller.listAvatarGroups)
-)
-
-router.get(
   "/heygen/avatar-looks",
   validate(controller.schemas.heygenListQuerySchema, "query"),
   asyncHandler(controller.listAvatarLooks)

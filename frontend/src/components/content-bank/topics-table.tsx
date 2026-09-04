@@ -116,7 +116,8 @@ export function TopicsTable({
                         {topic.timesUsed}
                       </TooltipTrigger>
                       <TooltipContent>
-                        How many scripts have been generated from this topic
+                        How many times scripts have been generated from this
+                        topic
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>

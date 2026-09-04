@@ -1,7 +1,14 @@
 "use client"
 
 import { AnimatePresence } from "framer-motion"
-import { Eye, MoreHorizontal, RotateCcw, ThumbsDown } from "lucide-react"
+import {
+  Clapperboard,
+  Eye,
+  Film,
+  MoreHorizontal,
+  RotateCcw,
+  ThumbsDown,
+} from "lucide-react"
 
 import {
   AnimatedTableBody,
@@ -32,11 +39,13 @@ export function ApprovalsTable({
   onOpen,
   onReject,
   onRetry,
+  onRender,
 }: {
   scripts: Script[]
   onOpen: (script: Script) => void
   onReject: (script: Script) => void
   onRetry: (script: Script) => void
+  onRender: (script: Script) => void
 }) {
   return (
     <div className="overflow-hidden rounded-xl border">
@@ -47,8 +56,9 @@ export function ApprovalsTable({
               <TableHead className="min-w-56 text-center">Title</TableHead>
               <TableHead className="min-w-48 text-center">Issue</TableHead>
               <TableHead className="w-36 text-center">Status</TableHead>
+              <TableHead className="w-20 text-center">Video</TableHead>
               <TableHead className="min-w-44 text-center">Platforms</TableHead>
-              <TableHead className="w-44 text-center">Scheduled</TableHead>
+              <TableHead className="w-44 text-center">Uploads at</TableHead>
               <TableHead className="w-20 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -74,6 +84,14 @@ export function ApprovalsTable({
 
                   <TableCell className="text-center">
                     <ScriptStatusBadge status={script.status} />
+                  </TableCell>
+
+                  <TableCell className="text-center">
+                    {script.videoStorageUrl ? (
+                      <Film className="mx-auto size-4 text-status-approved" />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-center">
@@ -112,10 +130,19 @@ export function ApprovalsTable({
                             View details
                           </DropdownMenuItem>
 
+                          {script.status === "DRAFT" && (
+                            <DropdownMenuItem onClick={() => onRender(script)}>
+                              <Clapperboard />
+                              Use this &amp; generate video
+                            </DropdownMenuItem>
+                          )}
+
                           {script.status === "FAILED" && (
                             <DropdownMenuItem onClick={() => onRetry(script)}>
                               <RotateCcw />
-                              Retry publishing
+                              {script.videoStorageUrl
+                                ? "Retry publishing"
+                                : "Retry the video"}
                             </DropdownMenuItem>
                           )}
 

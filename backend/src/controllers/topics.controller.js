@@ -3,8 +3,8 @@
 const { z } = require("zod")
 
 const { prisma } = require("../lib/prisma")
-const { generateScript } = require("../services/llm.service")
-const { badRequest, conflict, notFound } = require("../utils/errors")
+const { generateScriptVariants } = require("../services/llm.service")
+const { conflict, notFound } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 
 const TOPIC_STATUSES = ["IDLE", "GENERATING", "GENERATED", "ERROR"]
@@ -92,8 +92,6 @@ async function deleteTopic(req, res) {
   })
   if (!existing) throw notFound("Topic not found")
 
-  // Deleting would cascade away generated scripts along with their publish
-  // history, so refuse rather than silently destroying the record.
   if (existing._count.scripts > 0) {
     throw conflict(
       `This topic has ${existing._count.scripts} generated script(s) and cannot be deleted.`
@@ -104,13 +102,30 @@ async function deleteTopic(req, res) {
   res.status(204).send()
 }
 
-// Runs the LLM for one topic 
+const IN_FLIGHT_SCRIPT_STATUSES = [
+  "RENDERING",
+  "PENDING_REVIEW",
+  "APPROVED",
+  "PROCESSING",
+]
+
+// Runs the LLM for one topic, producing several options to pick from
 async function generateFromTopic(req, res) {
   const topic = await prisma.topic.findUnique({ where: { id: req.params.id } })
   if (!topic) throw notFound("Topic not found")
 
   if (topic.status === "GENERATING") {
-    throw conflict("A script is already being generated for this topic.")
+    throw conflict("Scripts are already being generated for this topic.")
+  }
+
+  const inFlight = await prisma.script.findFirst({
+    where: { topicId: topic.id, status: { in: IN_FLIGHT_SCRIPT_STATUSES } },
+  })
+
+  if (inFlight) {
+    throw conflict(
+      `This topic already has a script that is ${inFlight.status.toLowerCase().replace("_", " ")}. Finish or disapprove it before generating new ones.`
+    )
   }
 
   await prisma.topic.update({
@@ -123,20 +138,21 @@ async function generateFromTopic(req, res) {
   })
 
   try {
-    const generated = await generateScript({
+    const generated = await generateScriptVariants({
       issue: topic.issue,
       angle: topic.angle,
     })
 
-    if (!generated.title || !generated.scriptText) {
-      throw badRequest("Model returned an incomplete script")
-    }
-
-    // The script row and the topic's usage counters must move together.
-    const [script] = await prisma.$transaction([
-      prisma.script.create({
-        data: { ...generated, topicId: topic.id, status: "PENDING_REVIEW" },
-        include: { topic: { select: { id: true, issue: true, angle: true } } },
+    const [, scripts] = await prisma.$transaction([
+      prisma.script.deleteMany({
+        where: { topicId: topic.id, status: "DRAFT" },
+      }),
+      prisma.script.createManyAndReturn({
+        data: generated.map((variant) => ({
+          ...variant,
+          topicId: topic.id,
+          status: "DRAFT",
+        })),
       }),
       prisma.topic.update({
         where: { id: topic.id },
@@ -149,8 +165,10 @@ async function generateFromTopic(req, res) {
       }),
     ])
 
-    logger.info(`Generated script ${script.id} for topic ${topic.id}`)
-    res.status(201).json(script)
+    logger.info(
+      `Generated ${scripts.length} script option(s) for topic ${topic.id}`
+    )
+    res.status(201).json({ scripts, count: scripts.length })
   } catch (error) {
     await prisma.topic.update({
       where: { id: topic.id },

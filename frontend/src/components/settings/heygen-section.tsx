@@ -20,11 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAsyncData } from "@/hooks/use-async-data"
-import {
-  listAvatarGroups,
-  listAvatarLooks,
-  listVoices,
-} from "@/lib/api/settings"
+import { listAvatarLooks, listVoices } from "@/lib/api/settings"
 import {
   ENGINE_HINTS,
   ENGINE_LABELS,
@@ -44,19 +40,7 @@ export function HeygenSection({
   patch: Patch
   disabled?: boolean
 }) {
-  const groups = useAsyncData(() => listAvatarGroups({ limit: 50 }), [])
-
-  // Looks belong to a character, so the list reloads whenever the character
-  // changes. Without a group the endpoint would return every look on the
-  // account, which is not a useful picker.
-  const groupId = draft.heygenAvatarGroupId
-  const looks = useAsyncData(
-    () =>
-      groupId
-        ? listAvatarLooks({ groupId, limit: 50 })
-        : Promise.resolve({ items: [], hasMore: false, nextToken: null }),
-    [groupId]
-  )
+  const looks = useAsyncData(() => listAvatarLooks({ limit: 50 }), [])
 
   const voices = useAsyncData(() => listVoices({ limit: 100 }), [])
 
@@ -67,8 +51,6 @@ export function HeygenSection({
     (voice) => voice.id === draft.heygenVoiceId
   )
 
-  // Asking for an engine the look does not list is a 400 from HeyGen, so the
-  // options narrow to what this look actually accepts once it is known.
   const allowedEngines: HeygenEngine[] =
     selectedLook && selectedLook.supportedEngines.length > 0
       ? selectedLook.supportedEngines
@@ -79,7 +61,7 @@ export function HeygenSection({
     selectedLook.supportedEngines.length > 0 &&
     !selectedLook.supportedEngines.includes(draft.heygenAvatarEngine)
 
-  const catalogError = groups.error ?? voices.error
+  const catalogError = looks.error ?? voices.error
 
   return (
     <Card>
@@ -106,53 +88,9 @@ export function HeygenSection({
         )}
 
         <SettingField
-          label="Avatar"
-          htmlFor="heygen-avatar-group"
-          description="The character. Each one has one or more looks."
-        >
-          {groups.data && groups.data.items.length > 0 ? (
-            <Select
-              value={draft.heygenAvatarGroupId ?? ""}
-              onValueChange={(next) =>
-                patch({
-                  heygenAvatarGroupId: next || null,
-                  // The old look belongs to the previous character.
-                  heygenAvatarLookId: null,
-                })
-              }
-              disabled={disabled || groups.isLoading}
-            >
-              <SelectTrigger id="heygen-avatar-group" className="w-full">
-                <SelectValue placeholder="Choose an avatar" />
-              </SelectTrigger>
-              <SelectContent className="max-h-64">
-                {groups.data.items.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>
-                    {group.name}
-                    {group.looksCount ? ` · ${group.looksCount} looks` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              id="heygen-avatar-group"
-              value={draft.heygenAvatarGroupId ?? ""}
-              disabled={disabled}
-              placeholder={
-                groups.isLoading ? "Loading avatars…" : "Avatar group id"
-              }
-              onChange={(event) =>
-                patch({ heygenAvatarGroupId: event.target.value || null })
-              }
-            />
-          )}
-        </SettingField>
-
-        <SettingField
-          label="Look"
+          label="Avatar ID"
           htmlFor="heygen-avatar-look"
-          description="The outfit or pose. This is the id HeyGen renders with."
+          description="The character, outfit and pose. This is the id HeyGen renders with."
         >
           {looks.data && looks.data.items.length > 0 ? (
             <Select
@@ -163,7 +101,7 @@ export function HeygenSection({
               disabled={disabled || looks.isLoading}
             >
               <SelectTrigger id="heygen-avatar-look" className="w-full">
-                <SelectValue placeholder="Choose a look" />
+                <SelectValue placeholder="Choose an avatar" />
               </SelectTrigger>
               <SelectContent className="max-h-64">
                 {looks.data.items.map((look) => (
@@ -180,10 +118,8 @@ export function HeygenSection({
               disabled={disabled}
               placeholder={
                 looks.isLoading
-                  ? "Loading looks…"
-                  : groupId
-                    ? "No looks found — paste a look id"
-                    : "Pick an avatar first, or paste a look id"
+                  ? "Loading avatars…"
+                  : "No avatars found — paste an avatar id"
               }
               onChange={(event) =>
                 patch({ heygenAvatarLookId: event.target.value || null })
@@ -199,7 +135,7 @@ export function HeygenSection({
             engineUnsupported ? (
               <span className="flex items-start gap-1.5 text-destructive">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                This look does not support {ENGINE_LABELS[draft.heygenAvatarEngine]}.
+                This avatar does not support {ENGINE_LABELS[draft.heygenAvatarEngine]}.
                 HeyGen will reject the render.
               </span>
             ) : (

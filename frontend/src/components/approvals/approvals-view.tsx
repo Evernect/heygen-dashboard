@@ -6,6 +6,7 @@ import { ClipboardCheck, Sparkles, TriangleAlert } from "lucide-react"
 import { ApprovalsTable } from "@/components/approvals/approvals-table"
 import { RejectDialog } from "@/components/approvals/reject-dialog"
 import { ScriptDetailDialog } from "@/components/approvals/script-detail-dialog"
+import { ScriptOptionsGrid } from "@/components/approvals/script-options-grid"
 import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState, ErrorState } from "@/components/shared/empty-state"
 import { LinkButton } from "@/components/shared/link-button"
@@ -15,27 +16,38 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncData } from "@/hooks/use-async-data"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
-import { listScripts, retryScript } from "@/lib/api/scripts"
+import { listScripts, renderScript, retryScript } from "@/lib/api/scripts"
 import { APPROVAL_TABS } from "@/lib/constants/statuses"
 import type { Script, ScriptStatus } from "@/lib/types/script"
 
 type TabValue = ScriptStatus | "ALL"
 
+const RENDERING_REFRESH_MS = 8000
+
 const EMPTY_COPY: Record<TabValue, { title: string; description: string }> = {
-  PENDING_REVIEW: {
-    title: "No scripts pending review",
+  DRAFT: {
+    title: "No scripts to choose from",
     description:
-      "Generate a script from the content bank and it will land here for approval.",
+      "Generate scripts from a content bank topic and the options land here to pick from.",
+  },
+  RENDERING: {
+    title: "No videos rendering",
+    description:
+      "Scripts show here while HeyGen builds the video, before you review it.",
+  },
+  PENDING_REVIEW: {
+    title: "No videos to review",
+    description:
+      "Once a video finishes rendering it waits here for you to watch and approve.",
   },
   APPROVED: {
     title: "Nothing scheduled",
     description:
-      "Approved scripts appear here with their publish time until the scheduler picks them up.",
+      "Approved videos appear here with their upload time until the scheduler picks them up.",
   },
   PROCESSING: {
     title: "Nothing publishing right now",
-    description:
-      "Scripts show here while their video renders and posts go out.",
+    description: "Videos show here while their posts go out to each platform.",
   },
   POSTED: {
     title: "Nothing published yet",
@@ -43,37 +55,81 @@ const EMPTY_COPY: Record<TabValue, { title: string; description: string }> = {
   },
   FAILED: {
     title: "No failures",
-    description: "Anything that errors while publishing shows up here to retry.",
+    description:
+      "Anything that errors while rendering or publishing shows up here to retry.",
   },
   REJECTED: {
     title: "Nothing disapproved",
-    description: "Scripts you turn down are kept here for reference.",
+    description: "Scripts and videos you turn down are kept here for reference.",
   },
   ALL: {
     title: "No scripts yet",
     description:
-      "Generate your first script from the content bank to get started.",
+      "Generate your first set of scripts from the content bank to get started.",
   },
 }
 
 export function ApprovalsView() {
   const { notifySuccess, notifyError } = useToastFeedback()
-  const [tab, setTab] = React.useState<TabValue>("PENDING_REVIEW")
+  const [tab, setTab] = React.useState<TabValue>("DRAFT")
 
   const { data, error, isLoading, refetch } = useAsyncData(
     () => listScripts({ status: tab }),
     [tab]
   )
 
-  const [selected, setSelected] = React.useState<Script | null>(null)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const [rejectTarget, setRejectTarget] = React.useState<Script | null>(null)
+  const [renderingId, setRenderingId] = React.useState<string | null>(null)
+
+  const [selectedId, setSelectedId] = React.useState<string | null>(null)
+  const [selectedSnapshot, setSelectedSnapshot] = React.useState<Script | null>(
+    null
+  )
 
   const scripts = data ?? []
 
+  const selected =
+    (selectedId
+      ? scripts.find((script) => script.id === selectedId)
+      : undefined) ??
+    selectedSnapshot
+
+  const hasRendering = scripts.some((script) => script.status === "RENDERING")
+
+  React.useEffect(() => {
+    if (!hasRendering) return
+
+    const timer = setInterval(() => void refetch(), RENDERING_REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [hasRendering, refetch])
+
   function openDetail(script: Script) {
-    setSelected(script)
+    setSelectedId(script.id)
+    setSelectedSnapshot(script)
     setDetailOpen(true)
+  }
+
+  function handleChanged(updated?: Script) {
+    if (updated) setSelectedSnapshot(updated)
+    void refetch()
+  }
+
+  async function handleRender(script: Script) {
+    setRenderingId(script.id)
+    try {
+      await renderScript(script.id)
+      notifySuccess(
+        "Generating the video",
+        "It lands in Review video once HeyGen finishes."
+      )
+      setTab("RENDERING")
+    } catch (caught) {
+      notifyError("Could not start the video", caught)
+      await refetch()
+    } finally {
+      setRenderingId(null)
+    }
   }
 
   async function handleRetry(script: Script) {
@@ -92,11 +148,11 @@ export function ApprovalsView() {
     <PageTransition className="space-y-6">
       <PageHeader
         title="Approvals"
-        description="Review generated scripts, then approve and schedule them."
+        description="Pick a script, generate the video, then review it before approving an upload time."
         action={
           <LinkButton variant="brand" href="/content-bank">
             <Sparkles />
-            Generate a script
+            Generate scripts
           </LinkButton>
         }
       />
@@ -139,20 +195,28 @@ export function ApprovalsView() {
             </LinkButton>
           }
         />
+      ) : tab === "DRAFT" ? (
+        <ScriptOptionsGrid
+          scripts={scripts}
+          renderingId={renderingId}
+          onOpen={openDetail}
+          onRender={(script) => void handleRender(script)}
+        />
       ) : (
         <ApprovalsTable
           scripts={scripts}
           onOpen={openDetail}
           onReject={setRejectTarget}
           onRetry={(script) => void handleRetry(script)}
+          onRender={(script) => void handleRender(script)}
         />
       )}
 
       <ScriptDetailDialog
-        script={selected}
+        script={selected ?? null}
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        onChanged={() => void refetch()}
+        onChanged={handleChanged}
         onRequestReject={(script) => {
           setDetailOpen(false)
           setRejectTarget(script)

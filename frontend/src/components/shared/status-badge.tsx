@@ -22,7 +22,7 @@ export function ScriptStatusBadge({
       <StatusDot
         className={cn(
           meta.dotClassName,
-          status === "PROCESSING" && "animate-pulse"
+          (status === "PROCESSING" || status === "RENDERING") && "animate-pulse"
         )}
       />
       {meta.label}

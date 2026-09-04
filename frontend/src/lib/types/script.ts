@@ -2,6 +2,8 @@ import type { Platform, PlatformPost } from "./platform"
 import type { Topic } from "./topic"
 
 export const SCRIPT_STATUSES = [
+  "DRAFT",
+  "RENDERING",
   "PENDING_REVIEW",
   "APPROVED",
   "PROCESSING",
@@ -27,7 +29,11 @@ export interface Script {
   hashtags: string[]
   targetPlatforms: Platform[]
 
+  variantIndex: number
+  variantLabel: string | null
+
   status: ScriptStatus
+  selectedAt: string | null
   scheduledAt: string | null
   approvedAt: string | null
   rejectedAt: string | null
@@ -37,6 +43,7 @@ export interface Script {
   processingAttempts: number
   lastError: string | null
 
+  renderStartedAt: string | null
   heygenVideoId: string | null
   heygenVideoUrl: string | null
   videoStorageUrl: string | null
@@ -45,6 +52,38 @@ export interface Script {
 
   createdAt: string
   updatedAt: string
+}
+
+export interface ScriptOptionGroup {
+  topicId: string
+  issue: string
+  angle: string
+  options: Script[]
+}
+
+export function groupScriptsByTopic(scripts: Script[]): ScriptOptionGroup[] {
+  const groups = new Map<string, ScriptOptionGroup>()
+
+  for (const script of scripts) {
+    const existing = groups.get(script.topicId)
+    if (existing) {
+      existing.options.push(script)
+      continue
+    }
+
+    groups.set(script.topicId, {
+      topicId: script.topicId,
+      issue: script.topic?.issue ?? "Untitled topic",
+      angle: script.topic?.angle ?? "",
+      options: [script],
+    })
+  }
+
+  for (const group of groups.values()) {
+    group.options.sort((a, b) => a.variantIndex - b.variantIndex)
+  }
+
+  return [...groups.values()]
 }
 
 export interface UpdateScriptInput {

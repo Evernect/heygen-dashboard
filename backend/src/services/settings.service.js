@@ -6,12 +6,9 @@ const { logger } = require("../utils/logger")
 
 const SETTINGS_ID = "singleton"
 
-// Env vars stay the fallback so a deployment keeps working before anyone has
-// opened the settings page. Once a value is saved it wins.
 function defaults() {
   return {
     id: SETTINGS_ID,
-    heygenAvatarGroupId: null,
     heygenAvatarLookId: env.HEYGEN_AVATAR_ID ?? null,
     heygenAvatarEngine: "avatar_iv",
     heygenVoiceId: env.HEYGEN_VOICE_ID ?? null,
@@ -29,9 +26,6 @@ function defaults() {
 let cached = null
 let warnedMissingTable = false
 
-// P2021 is "table does not exist". Generation worked off env vars before this
-// table existed, so a pending migration falls back to those rather than taking
-// the whole pipeline down.
 function isMissingTable(error) {
   return error?.code === "P2021"
 }
@@ -73,8 +67,6 @@ async function updateSettings(patch) {
   return saved
 }
 
-// The pipeline reads settings on every run, so a save must not require a
-// restart to take effect.
 function invalidate() {
   cached = null
 }

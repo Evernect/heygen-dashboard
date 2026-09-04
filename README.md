@@ -1,10 +1,13 @@
 # AI Video Automation
 
-**Flow:** add a topic (issue + angle) → generate a script and five platform
-captions with an LLM → review, edit and approve it with a schedule → a
-Supabase `pg_cron` job publishes it automatically at that time (HeyGen renders
-the avatar video, then it posts to Facebook and Instagram) → engagement metrics
-feed the Insights screen.
+**Flow:** add a topic (issue + angle) → generate **three** distinct scripts,
+each with five platform captions → pick one → HeyGen renders the avatar video →
+watch the preview → pick an upload time and approve → a Supabase `pg_cron` job
+posts it to Facebook and Instagram at that time → engagement metrics feed the
+Insights screen.
+
+Nothing is uploaded without an approval, and no approval is possible before the
+finished video has been rendered and previewed.
 
 | | |
 |---|---|
@@ -72,29 +75,38 @@ the bottom of that SQL file.
 
 ---
 
-## How scheduled publishing stays safe to repeat
+## Rendering happens before approval, publishing after
+
+The two halves of the pipeline are triggered by different things:
+
+- **Rendering** is started by a person, from `POST /api/scripts/:id/render`.
+  It picks one of the topic's script options and submits it to HeyGen. The
+  dashboard polls `GET /api/scripts/:id/render-status` while it waits, and the
+  cron tick advances any in-flight render too, so closing the tab cannot strand
+  a finished video.
+- **Publishing** is started by the schedule, and only ever for a script that a
+  person already approved against a video they could watch.
+
+Only one script per topic can occupy the render-to-posted stretch at a time.
+Disapproving frees the topic, and the options nobody picked stay selectable, so
+a different one can be rendered instead.
+
+### How scheduled publishing stays safe to repeat
 
 `net.http_post` is fire-and-forget: Postgres never retries and never waits for
 a response. The every-minute cadence *is* the retry mechanism, so the endpoint
 is built to be re-entered safely.
 
 Work is claimed with a single `UPDATE … RETURNING` using `FOR UPDATE SKIP
-LOCKED`, so two overlapping ticks can never claim the same script. From there,
-which phase a script resumes at is inferred from the fields already stored:
+LOCKED`, so two overlapping ticks can never claim the same script. Because the
+video already exists by the time a script is claimed, the tick only has the
+publish step left: each target platform without a successful post is posted to,
+and the unique `(scriptId, platform)` constraint on `PlatformPost` is the
+database-level backstop against a double post.
 
-| State | Next action |
-|---|---|
-| `heygenVideoId` is null | submit the render, save the id, stop |
-| `videoStorageUrl` is null | poll HeyGen; when done, download and upload, then publish |
-| `videoStorageUrl` is set | publish to each platform without a successful post |
-
-So a video is rendered **once**, uploaded **once**, and each platform is posted
-to **once**, however many times the job runs. The unique
-`(scriptId, platform)` constraint on `PlatformPost` is the database-level
-backstop.
-
-A `FAILED` script keeps its rendered video, so **Retry** in the UI resumes at
-the publish step without re-spending HeyGen credits.
+A `FAILED` script keeps whatever it got as far as. **Retry** in the UI resumes
+at the publish step when the video is already stored, and re-renders only when
+the failure happened before the video existed.
 
 ---
 
@@ -109,10 +121,12 @@ There is no authentication yet.
 | `POST` | `/api/topics` | Create a topic |
 | `PATCH` | `/api/topics/:id` | Edit a topic |
 | `DELETE` | `/api/topics/:id` | Delete a topic (blocked once scripts exist) |
-| `POST` | `/api/topics/:id/generate` | Generate a script from the topic |
-| `GET` | `/api/scripts` | List scripts (`?status=`) |
+| `POST` | `/api/topics/:id/generate` | Generate the topic's script options |
+| `GET` | `/api/scripts` | List scripts (`?status=`, `?topicId=`) |
 | `GET` | `/api/scripts/:id` | One script with its publish results |
-| `PATCH` | `/api/scripts/:id` | Edit before approval |
+| `PATCH` | `/api/scripts/:id` | Edit an option before it is rendered |
+| `POST` | `/api/scripts/:id/render` | Pick this option and start the video |
+| `GET` | `/api/scripts/:id/render-status` | Advance and report an in-flight render |
 | `POST` | `/api/scripts/:id/approve` | `{ scheduledAt, targetPlatforms }` |
 | `POST` | `/api/scripts/:id/reject` | `{ reason }` |
 | `POST` | `/api/scripts/:id/retry` | Re-queue a failed script |
@@ -122,8 +136,18 @@ There is no authentication yet.
 
 ## Script statuses
 
-`PENDING_REVIEW` → `APPROVED` → `PROCESSING` → `POSTED`, with `FAILED`
-(retryable) and `REJECTED` (terminal) as the off-ramps.
+`DRAFT` → `RENDERING` → `PENDING_REVIEW` → `APPROVED` → `PROCESSING` →
+`POSTED`, with `FAILED` (retryable) and `REJECTED` as the off-ramps.
+
+| Status | Meaning |
+|---|---|
+| `DRAFT` | One of the generated options, waiting to be picked |
+| `RENDERING` | Picked; HeyGen is building the video |
+| `PENDING_REVIEW` | Video is ready to watch and approve |
+| `APPROVED` | Upload time set; waiting for the cron to publish |
+
+`REJECTED` is not terminal for the topic: its unpicked `DRAFT` siblings stay
+selectable, so another one can be rendered in its place.
 
 ## Current limitations
 

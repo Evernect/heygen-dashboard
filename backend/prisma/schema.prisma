@@ -23,11 +23,13 @@ enum TopicStatus {
 }
 
 enum ScriptStatus {
-  PENDING_REVIEW // generated, awaiting human review
+  DRAFT // one of the generated options, waiting to be picked for a video
+  RENDERING // picked; HeyGen render submitted, video not ready yet
+  PENDING_REVIEW // video rendered, awaiting preview approval and a schedule
   APPROVED // approved with a schedule, waiting for the cron to claim it
-  PROCESSING // claimed by the cron; render/publish in flight
+  PROCESSING // claimed by the cron; publish in flight
   POSTED // live on every target platform
-  FAILED // publish attempt errored, retryable from the UI
+  FAILED // render or publish attempt errored, retryable from the UI
   REJECTED // disapproved by the reviewer
 }
 
@@ -75,7 +77,11 @@ model Script {
   hashtags          String[]
   targetPlatforms   Platform[]
 
-  status          ScriptStatus @default(PENDING_REVIEW)
+  variantIndex Int     @default(0)
+  variantLabel String?
+
+  status          ScriptStatus @default(DRAFT)
+  selectedAt      DateTime?
   scheduledAt     DateTime?
   approvedAt      DateTime?
   rejectedAt      DateTime?
@@ -86,6 +92,7 @@ model Script {
   processingAttempts  Int       @default(0)
   lastError           String?   @db.Text
 
+  renderStartedAt DateTime?
   heygenVideoId   String?
   heygenVideoUrl  String?
   videoStorageUrl String?
@@ -98,6 +105,7 @@ model Script {
   @@index([status])
   @@index([status, scheduledAt])
   @@index([topicId])
+  @@index([topicId, variantIndex])
 }
 
 model PlatformPost {
@@ -138,7 +146,6 @@ model VideoMetric {
 model AppSettings {
   id String @id @default("singleton")
 
-  heygenAvatarGroupId String?
   heygenAvatarLookId  String?
   heygenAvatarEngine  String  @default("avatar_iv")
   heygenVoiceId       String?

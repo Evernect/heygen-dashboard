@@ -27,7 +27,7 @@ import { useAsyncData } from "@/hooks/use-async-data"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
 import {
   deleteTopic,
-  generateScriptFromTopic,
+  generateScriptsFromTopic,
   listTopics,
 } from "@/lib/api/topics"
 import { TOPIC_TABS } from "@/lib/constants/statuses"
@@ -57,19 +57,19 @@ const EMPTY_COPY: Record<TabValue, { title: string; description: string }> = {
   ALL: {
     title: "No topics yet",
     description:
-      "Add an issue and the angle you want to take on it, then generate a script from it.",
+      "Add an issue and the angle you want to take on it, then generate scripts from it.",
   },
   IDLE: {
     title: "No idle topics",
-    description: "Topics waiting to have a script generated show up here.",
+    description: "Topics waiting to have scripts generated show up here.",
   },
   GENERATED: {
     title: "No generated topics yet",
-    description: "Topics with a script already generated show up here.",
+    description: "Topics with scripts already generated show up here.",
   },
   GENERATING: {
     title: "Nothing generating right now",
-    description: "Topics currently generating a script show up here.",
+    description: "Topics currently generating scripts show up here.",
   },
   ERROR: {
     title: "No errors",
@@ -120,10 +120,10 @@ export function ContentBankView() {
   async function handleGenerate(topic: Topic) {
     setGeneratingId(topic.id)
     try {
-      await generateScriptFromTopic(topic.id)
+      const { count } = await generateScriptsFromTopic(topic.id)
       notifySuccess(
-        "Script generated",
-        "It's waiting for you in the approval queue."
+        `${count} scripts generated`,
+        "Pick the one you want turned into a video."
       )
       await refetch()
       router.push("/approvals")
@@ -155,7 +155,7 @@ export function ContentBankView() {
     <PageTransition className="space-y-6">
       <PageHeader
         title="Content Bank"
-        description="Issues and angles that scripts are generated from."
+        description="Issues and angles. Generating one gives you three scripts to choose from."
         action={
           <>
             <Button variant="outline" onClick={() => setImportOpen(true)}>

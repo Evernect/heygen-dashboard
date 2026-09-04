@@ -1,7 +1,6 @@
 import { api } from "./client"
 import type {
   AppSettings,
-  HeygenAvatarGroup,
   HeygenAvatarLook,
   HeygenPage,
   HeygenVoice,
@@ -18,17 +17,7 @@ export function updateSettings(input: UpdateSettingsInput) {
   return api.patch<{ settings: AppSettings }>("api/settings", input)
 }
 
-export function listAvatarGroups(params?: {
-  ownership?: "public" | "private"
-  limit?: number
-}) {
-  return api.get<HeygenPage<HeygenAvatarGroup>>("api/settings/heygen/avatars", {
-    query: { ownership: params?.ownership, limit: params?.limit ?? 50 },
-  })
-}
-
-export function listAvatarLooks(params: {
-  groupId?: string
+export function listAvatarLooks(params?: {
   ownership?: "public" | "private"
   limit?: number
 }) {
@@ -36,9 +25,8 @@ export function listAvatarLooks(params: {
     "api/settings/heygen/avatar-looks",
     {
       query: {
-        groupId: params.groupId,
-        ownership: params.ownership,
-        limit: params.limit ?? 50,
+        ownership: params?.ownership,
+        limit: params?.limit ?? 50,
       },
     }
   )

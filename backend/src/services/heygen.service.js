@@ -47,33 +47,11 @@ async function heygenFetch(path, options = {}) {
   return body
 }
 
-// GET /v3/avatars — characters. Each group holds one or more looks.
-async function listAvatarGroups({ ownership, limit = 50, token } = {}) {
-  const body = await heygenFetch(
-    withQuery("/avatars", { ownership, limit, token })
-  )
-  const data = body?.data ?? {}
-
-  return {
-    items: (data.avatars ?? data.groups ?? data.items ?? []).map((group) => ({
-      id: group.id,
-      name: group.name,
-      gender: group.gender ?? null,
-      looksCount: group.looks_count ?? null,
-      previewImageUrl: group.preview_image_url ?? null,
-      defaultVoiceId: group.default_voice_id ?? null,
-    })),
-    hasMore: Boolean(data.has_more),
-    nextToken: data.next_token ?? null,
-  }
-}
-
 // GET /v3/avatars/looks — the look `id` is what POST /v3/videos wants as
-// `avatar_id`; a group id is rejected.
-async function listAvatarLooks({ groupId, ownership, limit = 50, token } = {}) {
+// `avatar_id`.
+async function listAvatarLooks({ ownership, limit = 50, token } = {}) {
   const body = await heygenFetch(
     withQuery("/avatars/looks", {
-      group_id: groupId,
       ownership,
       limit,
       token,
@@ -85,7 +63,6 @@ async function listAvatarLooks({ groupId, ownership, limit = 50, token } = {}) {
     items: (data.looks ?? data.items ?? []).map((look) => ({
       id: look.id,
       name: look.name,
-      groupId: look.group_id ?? null,
       avatarType: look.avatar_type ?? null,
       gender: look.gender ?? null,
       previewImageUrl: look.preview_image_url ?? null,
@@ -226,7 +203,6 @@ module.exports = {
   createVideo,
   getVideoStatus,
   downloadVideo,
-  listAvatarGroups,
   listAvatarLooks,
   listVoices,
 }

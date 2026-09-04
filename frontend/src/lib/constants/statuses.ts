@@ -8,8 +8,19 @@ export interface StatusMeta {
 }
 
 export const SCRIPT_STATUS_META: Record<ScriptStatus, StatusMeta> = {
+  DRAFT: {
+    label: "Option",
+    className: "ring-1 bg-muted text-muted-foreground ring-border",
+    dotClassName: "bg-muted-foreground/60",
+  },
+  RENDERING: {
+    label: "Rendering",
+    className:
+      "ring-1 bg-status-processing/12 text-status-processing-foreground dark:text-status-processing ring-status-processing/25",
+    dotClassName: "bg-status-processing",
+  },
   PENDING_REVIEW: {
-    label: "Pending",
+    label: "Ready to review",
     className:
       "ring-1 bg-status-pending/12 text-status-pending-foreground dark:text-status-pending ring-status-pending/25",
     dotClassName: "bg-status-pending",
@@ -80,9 +91,11 @@ export const TOPIC_TABS: { value: TopicStatus | "ALL"; label: string }[] = [
 ]
 
 export const APPROVAL_TABS: { value: ScriptStatus | "ALL"; label: string }[] = [
-  { value: "PENDING_REVIEW", label: "Pending" },
+  { value: "DRAFT", label: "Choose script" },
+  { value: "RENDERING", label: "Rendering" },
+  { value: "PENDING_REVIEW", label: "Review video" },
   { value: "APPROVED", label: "Scheduled" },
-  { value: "PROCESSING", label: "Processing" },
+  { value: "PROCESSING", label: "Publishing" },
   { value: "POSTED", label: "Posted" },
   { value: "FAILED", label: "Failed" },
   { value: "REJECTED", label: "Disapproved" },

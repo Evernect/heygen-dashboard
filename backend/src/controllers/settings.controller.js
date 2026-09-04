@@ -14,7 +14,6 @@ const MAX_WORDS = 400
 
 const updateSettingsSchema = z
   .object({
-    heygenAvatarGroupId: z.string().trim().min(1).nullable(),
     heygenAvatarLookId: z.string().trim().min(1).nullable(),
     heygenAvatarEngine: z.enum(HEYGEN_ENGINES),
     heygenVoiceId: z.string().trim().min(1).nullable(),
@@ -42,7 +41,6 @@ const updateSettingsSchema = z
   )
 
 const heygenListQuerySchema = z.object({
-  groupId: z.string().trim().min(1).optional(),
   ownership: z.enum(["public", "private"]).optional(),
   language: z.string().trim().min(1).optional(),
   gender: z.enum(["male", "female"]).optional(),
@@ -63,8 +61,6 @@ async function readSettings(req, res) {
 }
 
 async function writeSettings(req, res) {
-  // A partial body must not widen the range past what the other half allows,
-  // so validate the merged result rather than the patch alone.
   const current = await getSettings()
   const merged = { ...current, ...req.body }
 
@@ -84,22 +80,10 @@ async function writeSettings(req, res) {
   res.json({ settings })
 }
 
-async function listAvatarGroups(req, res) {
-  const query = req.validatedQuery ?? {}
-  res.json(
-    await heygen.listAvatarGroups({
-      ownership: query.ownership,
-      limit: query.limit,
-      token: query.token,
-    })
-  )
-}
-
 async function listAvatarLooks(req, res) {
   const query = req.validatedQuery ?? {}
   res.json(
     await heygen.listAvatarLooks({
-      groupId: query.groupId,
       ownership: query.ownership,
       limit: query.limit,
       token: query.token,
@@ -126,7 +110,6 @@ async function listOpenAiModels(req, res) {
 module.exports = {
   readSettings,
   writeSettings,
-  listAvatarGroups,
   listAvatarLooks,
   listVoices,
   listOpenAiModels,

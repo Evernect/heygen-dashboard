@@ -9,7 +9,10 @@ const { logger } = require("../utils/logger")
 const {
   buildScriptGenerationPrompt,
   buildScriptOutputSchema,
+  variantKeys,
 } = require("./prompts/script-generation.prompt")
+
+const SCRIPT_VARIANT_COUNT = 3
 
 let client = null
 
@@ -39,10 +42,6 @@ function toPlatformEnum(platforms) {
   ]
 }
 
-// Which sampling and reasoning parameters a model accepts moves with every
-// release, and asking for an unsupported one is a hard 400 rather than a
-// warning. Rather than pin a capability table that silently goes stale, send
-// what the settings ask for and drop the rejected parameter on the retry.
 const UNSUPPORTED_PARAM = /Unsupported (parameter|value): '?(\w+)/i
 
 function rejectedParameter(error) {
@@ -83,8 +82,27 @@ async function createWithFallback(openai, request) {
   }
 }
 
-// Generates a script plus per-platform captions for one topic.
-async function generateScript({ issue, angle }) {
+function toScriptRecord(variant, index) {
+  return {
+    variantIndex: index,
+    variantLabel: variant.label?.trim() || null,
+    title: variant.title,
+    scriptText: variant.script,
+    facebookCaption: variant.facebook_caption ?? null,
+    instagramCaption: variant.instagram_caption ?? null,
+    youtubeCaption: variant.youtube_caption ?? null,
+    tiktokCaption: variant.tiktok_caption ?? null,
+    xPostText: variant.x_post_text ?? null,
+    hashtags: Array.isArray(variant.hashtags) ? variant.hashtags : [],
+    targetPlatforms: toPlatformEnum(variant.platforms),
+  }
+}
+
+async function generateScriptVariants({
+  issue,
+  angle,
+  variantCount = SCRIPT_VARIANT_COUNT,
+}) {
   const openai = getClient()
   const settings = await getSettings()
 
@@ -96,10 +114,11 @@ async function generateScript({ issue, angle }) {
     angle,
     wordsMin,
     wordsMax,
+    variantCount,
   })
 
   logger.info(
-    `Generating script with ${settings.openaiModel} (${wordsMin}-${wordsMax} words) for issue: ${issue.slice(0, 80)}`
+    `Generating ${variantCount} scripts with ${settings.openaiModel} (${wordsMin}-${wordsMax} words) for issue: ${issue.slice(0, 80)}`
   )
 
   const request = {
@@ -108,9 +127,9 @@ async function generateScript({ issue, angle }) {
     text: {
       format: {
         type: "json_schema",
-        name: "video_script",
+        name: "video_scripts",
         strict: true,
-        schema: buildScriptOutputSchema({ wordsMin, wordsMax }),
+        schema: buildScriptOutputSchema({ wordsMin, wordsMax, variantCount }),
       },
     },
   }
@@ -146,20 +165,23 @@ async function generateScript({ issue, angle }) {
     throw new HttpError(502, "Script generation returned malformed JSON")
   }
 
-  return {
-    title: output.title,
-    scriptText: output.script,
-    facebookCaption: output.facebook_caption ?? null,
-    instagramCaption: output.instagram_caption ?? null,
-    youtubeCaption: output.youtube_caption ?? null,
-    tiktokCaption: output.tiktok_caption ?? null,
-    xPostText: output.x_post_text ?? null,
-    hashtags: Array.isArray(output.hashtags) ? output.hashtags : [],
-    targetPlatforms: toPlatformEnum(output.platforms),
+  const variants = variantKeys(variantCount)
+    .map((key) => output[key])
+    .filter((variant) => variant?.title && variant?.script)
+
+  if (variants.length === 0) {
+    throw new HttpError(502, "Script generation returned no usable scripts")
   }
+
+  if (variants.length < variantCount) {
+    logger.warn(
+      `Model returned ${variants.length} of ${variantCount} requested scripts`
+    )
+  }
+
+  return variants.map(toScriptRecord)
 }
 
-// GET /v1/models, narrowed to the text models worth picking for generation.
 async function listModels() {
   const openai = getClient()
   const page = await openai.models.list()
@@ -176,4 +198,9 @@ async function listModels() {
     .sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || a.id.localeCompare(b.id))
 }
 
-module.exports = { generateScript, listModels, rejectedParameter }
+module.exports = {
+  generateScriptVariants,
+  listModels,
+  rejectedParameter,
+  SCRIPT_VARIANT_COUNT,
+}

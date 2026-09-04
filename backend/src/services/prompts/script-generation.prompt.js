@@ -1,7 +1,5 @@
 "use strict"
 
-// ~150 spoken words per minute is the usual talking-head pace, so the word
-// range drives the runtime the script is written against.
 function estimateSeconds(words) {
   return Math.max(10, Math.round((words / 150) * 60))
 }
@@ -11,12 +9,26 @@ function buildScriptGenerationPrompt({
   angle,
   wordsMin = 75,
   wordsMax = 90,
+  variantCount = 3,
 }) {
   const range = `${wordsMin}-${wordsMax}`
   const seconds = estimateSeconds(wordsMax)
 
   return `# ROLE
 You write short-form, first-person talking-head scripts on public issues, plus matching social captions. The video is spoken directly to camera in a natural, conversational setting, and must run no longer than ${seconds} seconds.
+
+# TASK
+Write ${variantCount} separate, complete options for the same issue and angle. A human picks exactly one of them to turn into a video, so each option must stand on its own and be worth picking. Return them as variant_1 through variant_${variantCount}.
+
+Every option covers the same issue and argues the same position. What differs is the delivery:
+- A different opening hook. Never reuse an opening line, phrasing, or structure across options.
+- A different route through the argument (e.g. one leads with the consequence, one with a pointed question, one with the concrete fix).
+- A different closing beat before the sign-off.
+Do not rank them, hedge, or write one as the "safe" option. All ${variantCount} should be usable.
+
+Each option also carries a label: 2-4 plain words naming the take it makes, e.g. Direct challenge, Personal stake, Cost to residents. The label is for the reviewer's picker and never appears in the script or captions.
+
+Every rule below applies to each option independently.
 
 # INPUT
 Issue: ${issue}
@@ -82,6 +94,8 @@ Applies to all five captions: plain text, no SSML, no emojis, no quotation marks
 - platforms - array containing only these lowercase values: facebook, instagram, youtube, tiktok, x.
 
 # CHECK BEFORE RETURNING
+Run this list against every one of the ${variantCount} options.
+- No two options share an opening line, a structure, or a closing beat. Each label matches what its option actually does.
 - Script is ${range} spoken words, covers one issue, opens on a hook, and states the position in first person.
 - Voice matches the STYLE section: direct address, blunt opener, plain language, no forced catchphrases.
 - Every sentence ends with a <break/>, pause lengths vary by pacing, every value is one of 0.2s / 0.3s / 0.4s / 0.5s, and none exceeds 0.5s. No other field contains SSML.
@@ -91,11 +105,16 @@ Applies to all five captions: plain text, no SSML, no emojis, no quotation marks
 - No quotation marks or emojis anywhere in the output.`
 }
 
-function buildScriptOutputSchema({ wordsMin = 75, wordsMax = 90 } = {}) {
+function buildVariantSchema({ wordsMin, wordsMax }) {
   return {
     type: "object",
     additionalProperties: false,
     properties: {
+      label: {
+        type: "string",
+        description:
+          "2-4 plain words naming the take this option makes, for the reviewer's picker.",
+      },
       title: {
         type: "string",
         description:
@@ -124,6 +143,7 @@ function buildScriptOutputSchema({ wordsMin = 75, wordsMax = 90 } = {}) {
       },
     },
     required: [
+      "label",
       "title",
       "script",
       "facebook_caption",
@@ -137,4 +157,28 @@ function buildScriptOutputSchema({ wordsMin = 75, wordsMax = 90 } = {}) {
   }
 }
 
-module.exports = { buildScriptGenerationPrompt, buildScriptOutputSchema }
+function variantKeys(variantCount) {
+  return Array.from({ length: variantCount }, (_, index) => `variant_${index + 1}`)
+}
+
+function buildScriptOutputSchema({
+  wordsMin = 75,
+  wordsMax = 90,
+  variantCount = 3,
+} = {}) {
+  const variant = buildVariantSchema({ wordsMin, wordsMax })
+  const keys = variantKeys(variantCount)
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: Object.fromEntries(keys.map((key) => [key, variant])),
+    required: keys,
+  }
+}
+
+module.exports = {
+  buildScriptGenerationPrompt,
+  buildScriptOutputSchema,
+  variantKeys,
+}

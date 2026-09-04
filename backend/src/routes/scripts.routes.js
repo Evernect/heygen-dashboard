@@ -22,6 +22,10 @@ router.patch(
   asyncHandler(controller.updateScript)
 )
 
+router.post("/:id/render", asyncHandler(controller.renderScript))
+
+router.get("/:id/render-status", asyncHandler(controller.getRenderStatus))
+
 router.post(
   "/:id/approve",
   validate(controller.schemas.approveScriptSchema),

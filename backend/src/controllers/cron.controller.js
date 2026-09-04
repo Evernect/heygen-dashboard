@@ -6,7 +6,11 @@ const { logger } = require("../utils/logger")
 // Prevents a slow tick from overlapping with the next minute's trigger.
 let isRunning = false
 
-// Scheduling Webhook, called every minute by Supabase pg_cron via pg_net.
+/**
+ * Scheduling webhook, called every minute by Supabase pg_cron via pg_net.
+ * Advances any in-flight HeyGen render (the dashboard polls its own, so this is
+ * the safety net for a closed tab) and publishes whatever is due.
+ */
 async function publishDue(req, res) {
   if (isRunning) {
     logger.info("Publishing tick skipped — previous run still in progress")

@@ -15,7 +15,6 @@ export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
 export interface AppSettings {
   id: string
 
-  heygenAvatarGroupId: string | null
   heygenAvatarLookId: string | null
   heygenAvatarEngine: HeygenEngine
   heygenVoiceId: string | null
@@ -41,19 +40,9 @@ export interface SettingsResponse {
   }
 }
 
-export interface HeygenAvatarGroup {
-  id: string
-  name: string
-  gender: string | null
-  looksCount: number | null
-  previewImageUrl: string | null
-  defaultVoiceId: string | null
-}
-
 export interface HeygenAvatarLook {
   id: string
   name: string
-  groupId: string | null
   avatarType: string | null
   gender: string | null
   previewImageUrl: string | null

@@ -3,10 +3,13 @@
 const { z } = require("zod")
 
 const { prisma } = require("../lib/prisma")
+const render = require("../services/video-render.service")
 const { badRequest, conflict, notFound } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 
 const SCRIPT_STATUSES = [
+  "DRAFT",
+  "RENDERING",
   "PENDING_REVIEW",
   "APPROVED",
   "PROCESSING",
@@ -18,6 +21,7 @@ const PLATFORMS = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "TIKTOK", "X"]
 
 const listScriptsQuerySchema = z.object({
   status: z.enum(SCRIPT_STATUSES).optional(),
+  topicId: z.string().trim().min(1).optional(),
 })
 
 const updateScriptSchema = z
@@ -52,12 +56,19 @@ const includeRelations = {
 }
 
 async function listScripts(req, res) {
-  const { status } = req.validatedQuery ?? {}
+  const { status, topicId } = req.validatedQuery ?? {}
 
   const scripts = await prisma.script.findMany({
-    where: status ? { status } : undefined,
+    where: {
+      ...(status ? { status } : {}),
+      ...(topicId ? { topicId } : {}),
+    },
     include: includeRelations,
-    orderBy: [{ scheduledAt: "asc" }, { createdAt: "desc" }],
+    orderBy: [
+      { scheduledAt: "asc" },
+      { createdAt: "desc" },
+      { variantIndex: "asc" },
+    ],
   })
 
   res.json(scripts)
@@ -79,16 +90,50 @@ async function updateScript(req, res) {
   })
   if (!script) throw notFound("Script not found")
 
-  // Edits are only safe before approval
-  if (script.status !== "PENDING_REVIEW") {
+  if (script.status !== "DRAFT") {
     throw conflict(
-      `Only scripts awaiting review can be edited (this one is ${script.status}).`
+      `Only scripts that have not been rendered yet can be edited (this one is ${script.status}).`
     )
   }
 
   const updated = await prisma.script.update({
     where: { id: script.id },
     data: req.body,
+    include: includeRelations,
+  })
+
+  res.json(updated)
+}
+
+async function renderScript(req, res) {
+  const script = await prisma.script.findUnique({
+    where: { id: req.params.id },
+  })
+  if (!script) throw notFound("Script not found")
+
+  await render.startRender(script.id)
+
+  const updated = await prisma.script.findUnique({
+    where: { id: script.id },
+    include: includeRelations,
+  })
+
+  logger.info(`Script ${script.id} selected; video render started`)
+  res.status(202).json(updated)
+}
+
+async function getRenderStatus(req, res) {
+  const script = await prisma.script.findUnique({
+    where: { id: req.params.id },
+  })
+  if (!script) throw notFound("Script not found")
+
+  if (script.status === "RENDERING") {
+    await render.advanceRender(script.id)
+  }
+
+  const updated = await prisma.script.findUnique({
+    where: { id: script.id },
     include: includeRelations,
   })
 
@@ -103,8 +148,16 @@ async function approveScript(req, res) {
   })
   if (!script) throw notFound("Script not found")
 
-  if (!["PENDING_REVIEW", "REJECTED"].includes(script.status)) {
-    throw conflict(`A ${script.status} script cannot be approved.`)
+  if (script.status !== "PENDING_REVIEW") {
+    throw conflict(
+      `Only a script whose video is rendered and awaiting review can be approved (this one is ${script.status}).`
+    )
+  }
+
+  if (!script.videoStorageUrl) {
+    throw conflict(
+      "This script has no rendered video to preview. Generate the video first."
+    )
   }
 
   if (scheduledAt.getTime() <= Date.now()) {
@@ -152,14 +205,16 @@ async function rejectScript(req, res) {
     include: includeRelations,
   })
 
+  const alternatives = await prisma.script.count({
+    where: { topicId: script.topicId, status: "DRAFT" },
+  })
+
+  logger.info(
+    `Script ${script.id} disapproved; ${alternatives} other option(s) available for this topic`
+  )
   res.json(updated)
 }
 
-/**
- * Re-queues a failed script. The HeyGen id and stored video are preserved, so
- * the orchestrator resumes at the publish phase rather than re-rendering and
- * re-spending credits.
- */
 async function retryScript(req, res) {
   const script = await prisma.script.findUnique({
     where: { id: req.params.id },
@@ -168,6 +223,18 @@ async function retryScript(req, res) {
 
   if (script.status !== "FAILED") {
     throw conflict(`Only failed scripts can be retried (this one is ${script.status}).`)
+  }
+
+  if (!script.videoStorageUrl) {
+    await render.startRender(script.id)
+
+    const rendering = await prisma.script.findUnique({
+      where: { id: script.id },
+      include: includeRelations,
+    })
+
+    logger.info(`Script ${script.id} re-queued for rendering`)
+    return res.status(202).json(rendering)
   }
 
   const updated = await prisma.script.update({
@@ -190,6 +257,8 @@ module.exports = {
   listScripts,
   getScript,
   updateScript,
+  renderScript,
+  getRenderStatus,
   approveScript,
   rejectScript,
   retryScript,

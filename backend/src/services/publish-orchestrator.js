@@ -1,9 +1,8 @@
 "use strict"
 
 const { prisma } = require("../lib/prisma")
-const heygen = require("./heygen.service")
 const meta = require("./meta-graph.service")
-const storage = require("./storage.service")
+const { runInFlightRenders } = require("./video-render.service")
 const { logger } = require("../utils/logger")
 
 const BATCH_SIZE = 5
@@ -11,7 +10,6 @@ const BATCH_SIZE = 5
 
 const RESUME_STALE_AFTER = "3 minutes"
 
-// After this many attempts a script stops retrying and waits for a human
 const MAX_ATTEMPTS = 5
 
 const CAPTION_FIELD = {
@@ -76,51 +74,7 @@ async function markFailed(scriptId, error) {
   logger.error(`Script ${scriptId} failed: ${message}`)
 }
 
-// Phase 1 - submit the render
-async function submitRender(script) {
-  const videoId = await heygen.createVideo({
-    title: script.title,
-    scriptText: script.scriptText,
-  })
-
-  await prisma.script.update({
-    where: { id: script.id },
-    data: { heygenVideoId: videoId },
-  })
-
-  logger.info(`Script ${script.id}: render submitted (${videoId})`)
-}
-
-// Phase 2 - poll, then re-host the finished file
-async function collectRender(script) {
-  const result = await heygen.getVideoStatus(script.heygenVideoId)
-
-  if (result.status === "processing") {
-    logger.debug(`Script ${script.id}: still rendering`)
-    return false
-  }
-
-  if (result.status === "failed") {
-    throw new Error(result.error ?? "HeyGen render failed")
-  }
-
-  const buffer = await heygen.downloadVideo(result.videoUrl)
-  const publicUrl = await storage.uploadVideo({
-    scriptId: script.id,
-    title: script.title,
-    buffer,
-  })
-
-  await prisma.script.update({
-    where: { id: script.id },
-    data: { heygenVideoUrl: result.videoUrl, videoStorageUrl: publicUrl },
-  })
-
-  logger.info(`Script ${script.id}: video ready`)
-  return true
-}
-
-// Phase 3 - publish to each target platform that doesn't already have a successful post
+// Publish to each target platform that doesn't already have a successful post
 async function publishToPlatforms(script) {
   const existing = await prisma.platformPost.findMany({
     where: { scriptId: script.id },
@@ -220,20 +174,10 @@ async function processScript(scriptId) {
   if (!script || script.status !== "PROCESSING") return
 
   try {
-    if (!script.heygenVideoId) {
-      await submitRender(script)
-      return
-    }
-
     if (!script.videoStorageUrl) {
-      const ready = await collectRender(script)
-      if (!ready) return
-
-      const refreshed = await prisma.script.findUnique({
-        where: { id: scriptId },
-      })
-      await publishToPlatforms(refreshed)
-      return
+      throw new Error(
+        "This script has no rendered video. Generate the video and approve it again."
+      )
     }
 
     await publishToPlatforms(script)
@@ -243,6 +187,7 @@ async function processScript(scriptId) {
 }
 
 async function runDuePublishing() {
+  await runInFlightRenders()
   await failExhaustedScripts()
 
   const scriptIds = await claimDueScripts()

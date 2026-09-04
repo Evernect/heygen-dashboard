@@ -7,9 +7,15 @@ import type {
   UpdateScriptInput,
 } from "@/lib/types/script"
 
-export function listScripts(params?: { status?: ScriptStatus | "ALL" }) {
+export function listScripts(params?: {
+  status?: ScriptStatus | "ALL"
+  topicId?: string
+}) {
   return api.get<Script[]>("api/scripts", {
-    query: { status: params?.status === "ALL" ? undefined : params?.status },
+    query: {
+      status: params?.status === "ALL" ? undefined : params?.status,
+      topicId: params?.topicId,
+    },
   })
 }
 
@@ -19,6 +25,14 @@ export function getScript(id: string) {
 
 export function updateScript(id: string, input: UpdateScriptInput) {
   return api.patch<Script>(`api/scripts/${id}`, input)
+}
+
+export function renderScript(id: string) {
+  return api.post<Script>(`api/scripts/${id}/render`)
+}
+
+export function getRenderStatus(id: string) {
+  return api.get<Script>(`api/scripts/${id}/render-status`)
 }
 
 export function approveScript(id: string, input: ApproveScriptInput) {

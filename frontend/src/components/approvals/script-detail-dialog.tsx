@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, Pencil, Save, X } from "lucide-react"
+import { Clapperboard, Loader2, Pencil, Save, X } from "lucide-react"
 
 import { ApproveForm } from "@/components/approvals/approve-form"
 import {
@@ -9,7 +9,9 @@ import {
   type CaptionField,
 } from "@/components/approvals/caption-tabs"
 import { PublishStatusPanel } from "@/components/approvals/publish-status-panel"
+import { RenderProgress } from "@/components/approvals/render-progress"
 import { ScriptBody } from "@/components/approvals/script-body"
+import { VideoPreview } from "@/components/approvals/video-preview"
 import { ScriptStatusBadge } from "@/components/shared/status-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +25,12 @@ import {
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
-import { approveScript, retryScript, updateScript } from "@/lib/api/scripts"
+import {
+  approveScript,
+  renderScript,
+  retryScript,
+  updateScript,
+} from "@/lib/api/scripts"
 import type { Platform } from "@/lib/types/platform"
 import type { Script } from "@/lib/types/script"
 
@@ -52,7 +59,8 @@ export function ScriptDetailDialog({
   script: Script | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onChanged: () => void
+  /** Called after any change; passes the fresh row when the caller has one. */
+  onChanged: (updated?: Script) => void
   onRequestReject: (script: Script) => void
 }) {
   const { notifySuccess, notifyError } = useToastFeedback()
@@ -74,7 +82,11 @@ export function ScriptDetailDialog({
 
   if (!script || !draft) return null
 
-  const isPending = script.status === "PENDING_REVIEW"
+  // Text is only editable while the script is still an unrendered option —
+  // once HeyGen has spoken it, editing would desync the words from the video.
+  const isDraft = script.status === "DRAFT"
+  const isRendering = script.status === "RENDERING"
+  const isAwaitingReview = script.status === "PENDING_REVIEW"
   const isDirty = JSON.stringify(draft) !== JSON.stringify(toDraft(script))
 
   function updateDraft<K extends keyof Draft>(key: K, value: Draft[K]) {
@@ -97,6 +109,26 @@ export function ScriptDetailDialog({
     }
   }
 
+  async function handleRender() {
+    if (!script) return
+
+    setIsSubmitting(true)
+    try {
+      if (isDirty && draft) await updateScript(script.id, draft)
+
+      await renderScript(script.id)
+      notifySuccess(
+        "Generating the video",
+        "It lands in Review video once HeyGen finishes."
+      )
+      onChanged()
+    } catch (error) {
+      notifyError("Could not start the video", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   async function handleApprove(input: {
     scheduledAt: Date
     targetPlatforms: Platform[]
@@ -105,16 +137,14 @@ export function ScriptDetailDialog({
 
     setIsSubmitting(true)
     try {
-      if (isDirty && draft) await updateScript(script.id, draft)
-
       await approveScript(script.id, {
         scheduledAt: input.scheduledAt.toISOString(),
         targetPlatforms: input.targetPlatforms,
       })
 
       notifySuccess(
-        "Script approved",
-        "It will publish automatically at the scheduled time."
+        "Approved",
+        "The video will be uploaded at the scheduled time."
       )
       onOpenChange(false)
       onChanged()
@@ -148,6 +178,9 @@ export function ScriptDetailDialog({
           <DialogHeader className="pr-8">
             <div className="flex flex-wrap items-center gap-2">
               <ScriptStatusBadge status={script.status} />
+              {script.variantLabel && (
+                <Badge variant="secondary">{script.variantLabel}</Badge>
+              )}
               {script.topic && (
                 <span className="text-xs text-muted-foreground">
                   {script.topic.issue}
@@ -161,10 +194,14 @@ export function ScriptDetailDialog({
           </DialogHeader>
 
           <div className="mt-4 space-y-5">
+            {script.videoStorageUrl && (
+              <VideoPreview videoUrl={script.videoStorageUrl} />
+            )}
+
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Script</Label>
-                {isPending && (
+                {isDraft && (
                   <Button
                     variant="ghost"
                     size="xs"
@@ -186,7 +223,7 @@ export function ScriptDetailDialog({
               <Label>Captions</Label>
               <CaptionTabs
                 values={draft}
-                readOnly={!isPending}
+                readOnly={!isDraft}
                 onChange={(field, value) => updateDraft(field, value)}
               />
             </section>
@@ -204,7 +241,7 @@ export function ScriptDetailDialog({
               </section>
             )}
 
-            {isPending && isDirty && (
+            {isDraft && isDirty && (
               <>
                 <Separator />
                 <div className="flex justify-end">
@@ -220,7 +257,15 @@ export function ScriptDetailDialog({
               </>
             )}
 
-            {isPending ? (
+            {isDraft ? (
+              <SelectScriptPanel
+                isSubmitting={isSubmitting}
+                onRender={() => void handleRender()}
+                onReject={() => onRequestReject(script)}
+              />
+            ) : isRendering ? (
+              <RenderProgress script={script} onFinished={onChanged} />
+            ) : isAwaitingReview ? (
               <ApproveForm
                 script={script}
                 isSubmitting={isSubmitting}
@@ -238,5 +283,40 @@ export function ScriptDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function SelectScriptPanel({
+  isSubmitting,
+  onRender,
+  onReject,
+}: {
+  isSubmitting: boolean
+  onRender: () => void
+  onReject: () => void
+}) {
+  return (
+    <div className="space-y-4">
+      <Separator />
+
+      <p className="text-xs text-muted-foreground">
+        Picking this script sends it to HeyGen and spends a render. You&apos;ll
+        review the finished video before anything is scheduled or uploaded.
+      </p>
+
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="destructive" onClick={onReject} disabled={isSubmitting}>
+          Disapprove
+        </Button>
+        <Button variant="brand" onClick={onRender} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Clapperboard />
+          )}
+          Use this script &amp; generate video
+        </Button>
+      </div>
+    </div>
   )
 }
