@@ -10,11 +10,13 @@ import type {
 export function listScripts(params?: {
   status?: ScriptStatus | "ALL"
   topicId?: string
+  includeSiblings?: boolean
 }) {
   return api.get<Script[]>("api/scripts", {
     query: {
       status: params?.status === "ALL" ? undefined : params?.status,
       topicId: params?.topicId,
+      includeSiblings: params?.includeSiblings ? "true" : undefined,
     },
   })
 }

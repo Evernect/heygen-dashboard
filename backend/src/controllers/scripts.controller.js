@@ -22,6 +22,12 @@ const PLATFORMS = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "TIKTOK", "X"]
 const listScriptsQuerySchema = z.object({
   status: z.enum(SCRIPT_STATUSES).optional(),
   topicId: z.string().trim().min(1).optional(),
+  // Also return the other options of every topic that matched, so the UI can
+  // show which one was already picked next to the ones still on the table.
+  includeSiblings: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
 })
 
 const updateScriptSchema = z
@@ -56,7 +62,13 @@ const includeRelations = {
 }
 
 async function listScripts(req, res) {
-  const { status, topicId } = req.validatedQuery ?? {}
+  const { status, topicId, includeSiblings } = req.validatedQuery ?? {}
+
+  const orderBy = [
+    { scheduledAt: "asc" },
+    { createdAt: "desc" },
+    { variantIndex: "asc" },
+  ]
 
   const scripts = await prisma.script.findMany({
     where: {
@@ -64,14 +76,22 @@ async function listScripts(req, res) {
       ...(topicId ? { topicId } : {}),
     },
     include: includeRelations,
-    orderBy: [
-      { scheduledAt: "asc" },
-      { createdAt: "desc" },
-      { variantIndex: "asc" },
-    ],
+    orderBy,
   })
 
-  res.json(scripts)
+  if (!includeSiblings || !status || scripts.length === 0) {
+    return res.json(scripts)
+  }
+
+  const topicIds = [...new Set(scripts.map((script) => script.topicId))]
+
+  const withSiblings = await prisma.script.findMany({
+    where: { topicId: { in: topicIds } },
+    include: includeRelations,
+    orderBy,
+  })
+
+  res.json(withSiblings)
 }
 
 async function getScript(req, res) {

@@ -73,8 +73,10 @@ export function ApprovalsView() {
   const { notifySuccess, notifyError } = useToastFeedback()
   const [tab, setTab] = React.useState<TabValue>("DRAFT")
 
+  // The "Choose script" tab also pulls in each topic's already-picked option so
+  // the grid can show which one was chosen next to the ones still available.
   const { data, error, isLoading, refetch } = useAsyncData(
-    () => listScripts({ status: tab }),
+    () => listScripts({ status: tab, includeSiblings: tab === "DRAFT" }),
     [tab]
   )
 

@@ -59,6 +59,15 @@ export interface ScriptOptionGroup {
   issue: string
   angle: string
   options: Script[]
+  /** The option already taken forward to a video, if any. */
+  chosen: Script | null
+  /** When this batch of options was generated (newest option wins). */
+  createdAt: string
+}
+
+/** A script leaves DRAFT only once it has been picked to become a video. */
+export function isChosenScript(script: Script) {
+  return script.status !== "DRAFT" && script.status !== "REJECTED"
 }
 
 export function groupScriptsByTopic(scripts: Script[]): ScriptOptionGroup[] {
@@ -76,14 +85,25 @@ export function groupScriptsByTopic(scripts: Script[]): ScriptOptionGroup[] {
       issue: script.topic?.issue ?? "Untitled topic",
       angle: script.topic?.angle ?? "",
       options: [script],
+      chosen: null,
+      createdAt: script.createdAt,
     })
   }
 
   for (const group of groups.values()) {
     group.options.sort((a, b) => a.variantIndex - b.variantIndex)
+    group.chosen = group.options.find(isChosenScript) ?? null
+    group.createdAt = group.options.reduce(
+      (latest, option) =>
+        option.createdAt > latest ? option.createdAt : latest,
+      group.options[0].createdAt
+    )
   }
 
-  return [...groups.values()]
+  // Newest generation first, so the freshest batch is the one on show.
+  return [...groups.values()].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  )
 }
 
 export interface UpdateScriptInput {

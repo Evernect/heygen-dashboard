@@ -49,7 +49,7 @@ async function publishToFacebook({ videoUrl, title, caption }) {
 
   const [pageId, token] = requireEnv(
     "FACEBOOK_PAGE_ID",
-    "FACEBOOK_PAGE_ACCESS_TOKEN"
+    "META_PAGE_ACCESS_TOKEN"
   )
 
   const created = await graphRequest(`/${pageId}/videos`, {
@@ -98,7 +98,7 @@ async function publishToInstagram({ videoUrl, caption }) {
 
   const [accountId, token] = requireEnv(
     "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-    "INSTAGRAM_ACCESS_TOKEN"
+    "META_PAGE_ACCESS_TOKEN"
   )
 
   const container = await graphRequest(`/${accountId}/media`, {

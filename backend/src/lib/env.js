@@ -26,9 +26,8 @@ const schema = z.object({
   HEYGEN_VOICE_ID: z.string().optional(),
 
   FACEBOOK_PAGE_ID: z.string().optional(),
-  FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
   INSTAGRAM_BUSINESS_ACCOUNT_ID: z.string().optional(),
-  INSTAGRAM_ACCESS_TOKEN: z.string().optional(),
+  META_PAGE_ACCESS_TOKEN: z.string().optional(),
 
   CRON_SECRET: z.string().optional(),
 
