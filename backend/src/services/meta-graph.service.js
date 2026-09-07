@@ -26,9 +26,19 @@ async function graphRequest(path, { method = "GET", params = {}, token }) {
   const body = await response.json().catch(() => null)
 
   if (!response.ok || body?.error) {
-    const message =
-      body?.error?.message ?? `HTTP ${response.status}`
-    throw new HttpError(502, `Graph API error: ${message}`)
+    const error = body?.error
+    const detail = [
+      error?.message ?? `HTTP ${response.status}`,
+      error?.code !== undefined && `code ${error.code}`,
+      error?.error_subcode !== undefined && `subcode ${error.error_subcode}`,
+      error?.type,
+      error?.fbtrace_id && `fbtrace_id ${error.fbtrace_id}`,
+    ]
+      .filter(Boolean)
+      .join(" | ")
+
+    logger.error(`Graph API ${method} ${path} failed: ${detail}`)
+    throw new HttpError(502, `Graph API error: ${detail}`)
   }
 
   return body

@@ -4,17 +4,12 @@ import { AlertTriangle, Type } from "lucide-react"
 
 import { SettingField } from "@/components/settings/setting-field"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  SettingsGrid,
+  SettingsSection,
+} from "@/components/settings/settings-section"
 import { Input } from "@/components/ui/input"
 import type { AppSettings } from "@/lib/types/settings"
 
-// The prompt writes to a runtime target rather than a fixed 30 seconds, using
-// the same ~150 words-per-minute the backend assumes.
 const WORDS_PER_MINUTE = 150
 
 function estimateSeconds(words: number) {
@@ -33,64 +28,72 @@ export function ScriptShapeSection({
   const invalid = draft.targetWordsMin > draft.targetWordsMax
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Type className="size-4" />
-          Script length
-        </CardTitle>
-        <CardDescription>
-          The spoken word count the model writes to. SSML pause tags and the
-          closing line are excluded from the count.
-        </CardDescription>
-      </CardHeader>
+    <SettingsSection
+      icon={Type}
+      title="Script length"
+      description="The spoken word count the model writes to. SSML pause tags and the closing line are excluded from the count."
+    >
+      <SettingsGrid>
+        <SettingField
+          className="lg:col-span-2"
+          label="Minimum words"
+          htmlFor="words-min"
+        >
+          <Input
+            id="words-min"
+            type="number"
+            min={10}
+            max={400}
+            value={draft.targetWordsMin}
+            disabled={disabled}
+            aria-invalid={invalid}
+            onChange={(event) =>
+              patch({ targetWordsMin: Number(event.target.value) })
+            }
+          />
+        </SettingField>
 
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SettingField label="Minimum words" htmlFor="words-min">
-            <Input
-              id="words-min"
-              type="number"
-              min={10}
-              max={400}
-              value={draft.targetWordsMin}
-              disabled={disabled}
-              aria-invalid={invalid}
-              onChange={(event) =>
-                patch({ targetWordsMin: Number(event.target.value) })
-              }
-            />
-          </SettingField>
+        <SettingField
+          className="lg:col-span-2"
+          label="Maximum words"
+          htmlFor="words-max"
+        >
+          <Input
+            id="words-max"
+            type="number"
+            min={10}
+            max={400}
+            value={draft.targetWordsMax}
+            disabled={disabled}
+            aria-invalid={invalid}
+            onChange={(event) =>
+              patch({ targetWordsMax: Number(event.target.value) })
+            }
+          />
+        </SettingField>
 
-          <SettingField label="Maximum words" htmlFor="words-max">
-            <Input
-              id="words-max"
-              type="number"
-              min={10}
-              max={400}
-              value={draft.targetWordsMax}
-              disabled={disabled}
-              aria-invalid={invalid}
-              onChange={(event) =>
-                patch({ targetWordsMax: Number(event.target.value) })
-              }
-            />
-          </SettingField>
-        </div>
-
-        {invalid ? (
-          <p className="flex items-start gap-2 text-xs text-destructive">
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-            The minimum must be less than or equal to the maximum.
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            About {estimateSeconds(draft.targetWordsMin)}-
-            {estimateSeconds(draft.targetWordsMax)} seconds of speech at{" "}
-            {WORDS_PER_MINUTE} words per minute.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+        <SettingField
+          className="sm:col-span-2 lg:col-span-2"
+          label="Estimated runtime"
+          description={
+            invalid
+              ? undefined
+              : `At ${WORDS_PER_MINUTE} words per minute of speech.`
+          }
+        >
+          {invalid ? (
+            <p className="flex min-h-9 items-center gap-2 rounded-lg bg-destructive/10 px-3 text-xs text-destructive">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              Minimum must be at or below the maximum.
+            </p>
+          ) : (
+            <p className="flex min-h-9 items-center rounded-lg bg-muted/60 px-3 font-mono text-sm tabular-nums">
+              {estimateSeconds(draft.targetWordsMin)}–
+              {estimateSeconds(draft.targetWordsMax)}s
+            </p>
+          )}
+        </SettingField>
+      </SettingsGrid>
+    </SettingsSection>
   )
 }

@@ -5,12 +5,9 @@ import { AlertTriangle, Clapperboard, Mic } from "lucide-react"
 
 import { SettingField, SliderField } from "@/components/settings/setting-field"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  SettingsGrid,
+  SettingsSection,
+} from "@/components/settings/settings-section"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -64,21 +61,14 @@ export function HeygenSection({
   const catalogError = looks.error ?? voices.error
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clapperboard className="size-4" />
-          HeyGen render
-        </CardTitle>
-        <CardDescription>
-          Which avatar speaks the script, in which voice, on which rendering
-          engine.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-5">
+    <SettingsSection
+      icon={Clapperboard}
+      title="HeyGen render"
+      description="Which avatar speaks the script, in which voice, on which rendering engine."
+    >
+      <SettingsGrid>
         {catalogError && (
-          <p className="flex items-start gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
+          <p className="flex items-start gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive sm:col-span-2 lg:col-span-6">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>
               Could not reach HeyGen ({catalogError.message}). The IDs below can
@@ -88,6 +78,7 @@ export function HeygenSection({
         )}
 
         <SettingField
+          className="lg:col-span-3"
           label="Avatar ID"
           htmlFor="heygen-avatar-look"
           description="The character, outfit and pose. This is the id HeyGen renders with."
@@ -129,6 +120,7 @@ export function HeygenSection({
         </SettingField>
 
         <SettingField
+          className="lg:col-span-3"
           label="Avatar model"
           htmlFor="heygen-engine"
           description={
@@ -169,6 +161,7 @@ export function HeygenSection({
         </SettingField>
 
         <SettingField
+          className="lg:col-span-2"
           label="Voice"
           htmlFor="heygen-voice"
           description={
@@ -216,40 +209,40 @@ export function HeygenSection({
           )}
         </SettingField>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <SettingField
-            label="Speaking speed"
-            htmlFor="heygen-speed"
-            description="HeyGen accepts 0.5 to 1.5."
-          >
-            <SliderField
-              id="heygen-speed"
-              min={0.5}
-              max={1.5}
-              step={0.05}
-              value={draft.heygenVoiceSpeed}
-              disabled={disabled}
-              onChange={(value) => patch({ heygenVoiceSpeed: value })}
-              format={(value) => `${value.toFixed(2)}x`}
-            />
-          </SettingField>
+        <SettingField
+          className="lg:col-span-2"
+          label="Speaking speed"
+          htmlFor="heygen-speed"
+          description="HeyGen accepts 0.5 to 1.5."
+        >
+          <SliderField
+            id="heygen-speed"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={draft.heygenVoiceSpeed}
+            disabled={disabled}
+            onChange={(value) => patch({ heygenVoiceSpeed: value })}
+            format={(value) => `${value.toFixed(2)}x`}
+          />
+        </SettingField>
 
-          <SettingField
-            label="Locale"
-            htmlFor="heygen-locale"
-            description="Pronunciation variant, e.g. en-US or en-GB."
-          >
-            <Input
-              id="heygen-locale"
-              value={draft.heygenVoiceLocale}
-              disabled={disabled}
-              onChange={(event) =>
-                patch({ heygenVoiceLocale: event.target.value })
-              }
-            />
-          </SettingField>
-        </div>
-      </CardContent>
-    </Card>
+        <SettingField
+          className="lg:col-span-2"
+          label="Locale"
+          htmlFor="heygen-locale"
+          description="Pronunciation variant, e.g. en-US or en-GB."
+        >
+          <Input
+            id="heygen-locale"
+            value={draft.heygenVoiceLocale}
+            disabled={disabled}
+            onChange={(event) =>
+              patch({ heygenVoiceLocale: event.target.value })
+            }
+          />
+        </SettingField>
+      </SettingsGrid>
+    </SettingsSection>
   )
 }

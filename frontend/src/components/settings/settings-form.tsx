@@ -6,7 +6,6 @@ import { AlertTriangle, RotateCcw, Save } from "lucide-react"
 import { HeygenSection } from "@/components/settings/heygen-section"
 import { OpenAiSection } from "@/components/settings/openai-section"
 import { ScriptShapeSection } from "@/components/settings/script-shape-section"
-import { ThemePreference } from "@/components/settings/theme-preference"
 import { ErrorState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,14 +24,8 @@ export function SettingsForm() {
 
   const [draft, setDraft] = React.useState<AppSettings | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
-
-  // The server response is the baseline the draft is compared against, so a
-  // successful save clears the dirty state without a refetch.
   const [saved, setSaved] = React.useState<AppSettings | null>(null)
 
-  // Seed both from a fetch, tracking the fetched object itself rather than the
-  // baseline: a save replaces the baseline, and comparing against that would
-  // read as new data and throw the just-saved draft away.
   const fetched = data?.settings ?? null
   const [lastFetched, setLastFetched] = React.useState<AppSettings | null>(null)
 
@@ -57,8 +50,6 @@ export function SettingsForm() {
 
     setIsSaving(true)
     try {
-      // Only changed fields go up, so two people editing different sections
-      // do not overwrite each other's values.
       const response = await updateSettings(changedFields(draft, saved))
       setDraft(response.settings)
       setSaved(response.settings)
@@ -78,11 +69,23 @@ export function SettingsForm() {
     return (
       <div className="space-y-6">
         {[0, 1, 2].map((index) => (
-          <Card key={index}>
-            <CardContent className="space-y-3 py-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-2/3" />
+          <Card key={index} className="gap-0">
+            <CardContent className="space-y-4 pb-2">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-9 rounded-lg" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                {[0, 1].map((field) => (
+                  <div key={field} className="space-y-2">
+                    <Skeleton className="h-3.5 w-28" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -111,16 +114,19 @@ export function SettingsForm() {
       <HeygenSection draft={draft} patch={patch} disabled={isSaving} />
       <OpenAiSection draft={draft} patch={patch} disabled={isSaving} />
       <ScriptShapeSection draft={draft} patch={patch} disabled={isSaving} />
-      <ThemePreference />
 
-      {/* Anchored so the save stays reachable however far down the page the
-          edit was made. */}
       <div className="sticky bottom-4 z-10 flex justify-end">
         <div
           data-dirty={isDirty}
-          className="flex items-center gap-3 rounded-xl border bg-popover/95 px-3 py-2 shadow-lg backdrop-blur-sm transition-opacity data-[dirty=false]:pointer-events-none data-[dirty=false]:opacity-0"
+          data-invalid={wordsInvalid}
+          className="flex items-center gap-3 rounded-xl border bg-popover/95 px-3 py-2 shadow-lg ring-1 ring-primary/15 backdrop-blur-sm transition-all duration-200 data-[dirty=false]:pointer-events-none data-[dirty=false]:translate-y-2 data-[dirty=false]:opacity-0 data-[invalid=true]:ring-destructive/30"
         >
-          <span className="text-xs text-muted-foreground">
+          <span className="flex items-center gap-2 pl-1 text-xs text-muted-foreground">
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full bg-primary data-[invalid=true]:bg-destructive"
+              data-invalid={wordsInvalid}
+            />
             {wordsInvalid ? "Fix the word range to save" : "Unsaved changes"}
           </span>
           <Button variant="ghost" onClick={handleReset} disabled={isSaving}>

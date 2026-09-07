@@ -3,9 +3,17 @@
 import { CircleCheck, CircleX, Clock, RotateCcw } from "lucide-react"
 
 import { PlatformBadge } from "@/components/shared/platform-badges"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { formatDateTime } from "@/lib/format"
+import { explainPublishError, explainScriptError } from "@/lib/publish-errors"
+import type { PlatformPost } from "@/lib/types/platform"
 import type { Script } from "@/lib/types/script"
 
 
@@ -19,6 +27,7 @@ export function PublishStatusPanel({
   onRetry: () => void
 }) {
   const posts = script.posts ?? []
+  const scriptError = explainScriptError(script.lastError)
 
   return (
     <div className="space-y-4">
@@ -38,12 +47,12 @@ export function PublishStatusPanel({
         </div>
       )}
 
-      {script.lastError && (
+      {scriptError && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <p className="text-xs font-medium text-destructive">Last error</p>
-          <p className="mt-1 font-mono text-xs break-words">
-            {script.lastError}
+          <p className="text-xs font-medium text-destructive">
+            Publishing failed
           </p>
+          <p className="mt-1 text-sm">{scriptError}</p>
         </div>
       )}
 
@@ -52,28 +61,11 @@ export function PublishStatusPanel({
           <p className="text-xs font-medium text-muted-foreground">
             Publish results
           </p>
-          <div className="divide-y rounded-lg border">
+          <Accordion multiple className="rounded-lg border">
             {posts.map((post) => (
-              <div
-                key={post.id}
-                className="flex items-center justify-between gap-3 p-2.5"
-              >
-                <PlatformBadge platform={post.platform} />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {post.platformPostId && (
-                    <span className="font-mono">{post.platformPostId}</span>
-                  )}
-                  {post.status === "success" ? (
-                    <CircleCheck className="size-4 text-status-approved" />
-                  ) : post.status === "failed" ? (
-                    <CircleX className="size-4 text-destructive" />
-                  ) : (
-                    <Clock className="size-4" />
-                  )}
-                </div>
-              </div>
+              <PublishResultRow key={post.id} post={post} />
             ))}
-          </div>
+          </Accordion>
         </div>
       )}
 
@@ -104,6 +96,61 @@ export function PublishStatusPanel({
         </>
       )}
     </div>
+  )
+}
+
+function PublishResultRow({ post }: { post: PlatformPost }) {
+  const explanation =
+    post.status === "FAILED"
+      ? explainPublishError(post.error, post.platform)
+      : null
+
+  const summary = (
+    <div className="flex flex-1 items-center justify-between gap-3">
+      <PlatformBadge platform={post.platform} />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {post.platformPostId && (
+          <span className="font-mono">{post.platformPostId}</span>
+        )}
+        {post.status === "SUCCESS" ? (
+          <CircleCheck className="size-4 text-status-approved" />
+        ) : post.status === "FAILED" ? (
+          <CircleX className="size-4 text-destructive" />
+        ) : (
+          <Clock className="size-4" />
+        )}
+      </div>
+    </div>
+  )
+
+  if (!explanation) {
+    return (
+      <div className="flex items-center justify-between gap-3 p-2.5 not-last:border-b">
+        {summary}
+      </div>
+    )
+  }
+
+  return (
+    <AccordionItem value={post.id} className="not-last:border-b">
+      <AccordionTrigger className="gap-3 px-2.5 py-2.5 hover:no-underline">
+        {summary}
+      </AccordionTrigger>
+
+      <AccordionContent className="px-2.5 pb-3">
+        <p className="text-sm">{explanation.summary}</p>
+
+        {explanation.action && (
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {explanation.action}
+          </p>
+        )}
+
+        <p className="mt-2.5 font-mono text-[11px] break-words text-muted-foreground/70">
+          {explanation.technical}
+        </p>
+      </AccordionContent>
+    </AccordionItem>
   )
 }
 

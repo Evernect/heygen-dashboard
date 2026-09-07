@@ -5,12 +5,9 @@ import { AlertTriangle, Brain } from "lucide-react"
 
 import { SettingField, SliderField } from "@/components/settings/setting-field"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  SettingsGrid,
+  SettingsSection,
+} from "@/components/settings/settings-section"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -41,34 +38,24 @@ export function OpenAiSection({
 }) {
   const models = useAsyncData(() => listOpenAiModels(), [])
 
-  // The saved model may predate the account's current list, or be a fine-tune
-  // that the filter drops, so it is always offered.
   const modelIds = React.useMemo(() => {
     const ids = models.data?.items.map((model) => model.id) ?? []
     return ids.includes(draft.openaiModel) ? ids : [draft.openaiModel, ...ids]
   }, [models.data, draft.openaiModel])
 
-  // Reasoning models reject temperature at any effort above "none". Rather
-  // than guess per model, the form warns and the backend drops the parameter
-  // and retries if the API says no.
   const effortBlocksTemperature =
     draft.openaiReasoningEffort !== null &&
     draft.openaiReasoningEffort !== "none"
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Brain className="size-4" />
-          Script generation
-        </CardTitle>
-        <CardDescription>
-          The model that turns a topic into a script and its captions.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-5">
+    <SettingsSection
+      icon={Brain}
+      title="Script generation"
+      description="The model that turns a topic into a script and its captions."
+    >
+      <SettingsGrid>
         <SettingField
+          className="lg:col-span-3"
           label="Model"
           htmlFor="openai-model"
           description={
@@ -106,6 +93,7 @@ export function OpenAiSection({
         </SettingField>
 
         <SettingField
+          className="lg:col-span-3"
           label="Reasoning effort"
           htmlFor="openai-effort"
           description="Leave unset to use the model's own default. Non-reasoning models reject this entirely."
@@ -135,6 +123,7 @@ export function OpenAiSection({
         </SettingField>
 
         <SettingField
+          className="sm:col-span-2 lg:col-span-6"
           label="Temperature"
           htmlFor="openai-temperature"
           control={
@@ -173,7 +162,7 @@ export function OpenAiSection({
             format={(value) => value.toFixed(2)}
           />
         </SettingField>
-      </CardContent>
-    </Card>
+      </SettingsGrid>
+    </SettingsSection>
   )
 }

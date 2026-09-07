@@ -60,7 +60,8 @@ export function RejectDialog({
       }
       confirmLabel="Disapprove"
       destructive
-      isPending={isPending || reason.trim().length === 0}
+      isPending={isPending}
+      confirmDisabled={reason.trim().length === 0}
       onConfirm={handleConfirm}
     >
       <div className="grid gap-2">
