@@ -31,8 +31,8 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<Link href="/approvals" />}
-              tooltip="ReelFlow"
+              render={<Link href="/" />}
+              tooltip="Back to home"
               className="justify-center"
             >
               <motion.div

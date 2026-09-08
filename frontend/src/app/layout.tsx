@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Video Automation",
+  title: "ReelFlow",
   description:
     "Generate, review, schedule and publish short-form campaign videos.",
 }

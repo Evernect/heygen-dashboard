@@ -91,6 +91,26 @@
 
   --scrollbar-thumb: oklch(0 0 0 / 0.2);
   --scrollbar-thumb-hover: oklch(0 0 0 / 0.35);
+
+  --spotlight-first: radial-gradient(
+    68.54% 68.72% at 55.02% 31.46%,
+    hsla(194, 100%, 45%, 0.14) 0,
+    hsla(194, 100%, 42%, 0.05) 50%,
+    hsla(194, 100%, 42%, 0) 80%
+  );
+  --spotlight-second: radial-gradient(
+    50% 50% at 50% 50%,
+    hsla(194, 100%, 45%, 0.1) 0,
+    hsla(194, 100%, 42%, 0.04) 80%,
+    transparent 100%
+  );
+  --spotlight-third: radial-gradient(
+    50% 50% at 50% 50%,
+    hsla(291, 78%, 60%, 0.09) 0,
+    hsla(291, 78%, 55%, 0.03) 80%,
+    transparent 100%
+  );
+  --grid-line: oklch(0 0 0 / 0.055);
 }
 
 .dark {
@@ -157,6 +177,26 @@
 
   --scrollbar-thumb: oklch(1 0 0 / 0.18);
   --scrollbar-thumb-hover: oklch(1 0 0 / 0.32);
+
+  --spotlight-first: radial-gradient(
+    68.54% 68.72% at 55.02% 31.46%,
+    hsla(194, 100%, 75%, 0.13) 0,
+    hsla(194, 100%, 55%, 0.05) 50%,
+    hsla(194, 100%, 45%, 0) 80%
+  );
+  --spotlight-second: radial-gradient(
+    50% 50% at 50% 50%,
+    hsla(194, 100%, 75%, 0.1) 0,
+    hsla(194, 100%, 55%, 0.035) 80%,
+    transparent 100%
+  );
+  --spotlight-third: radial-gradient(
+    50% 50% at 50% 50%,
+    hsla(291, 100%, 82%, 0.09) 0,
+    hsla(291, 100%, 70%, 0.03) 80%,
+    transparent 100%
+  );
+  --grid-line: oklch(1 0 0 / 0.06);
 }
 
 @theme inline {
