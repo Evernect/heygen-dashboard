@@ -67,10 +67,10 @@ export function HeroSection() {
         >
           <LinkButton
             size="lg"
-            href="/approvals"
+            href="/signup"
             className="h-11 rounded-xl px-6"
           >
-            Open dashboard
+            Get started
             <ArrowRightIcon data-icon="inline-end" />
           </LinkButton>
           <Button

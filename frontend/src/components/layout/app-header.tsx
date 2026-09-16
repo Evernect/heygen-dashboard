@@ -2,12 +2,14 @@
 
 import { usePathname } from "next/navigation"
 
+import { UserMenu } from "@/components/layout/user-menu"
 import { ModeToggle } from "@/components/theme/mode-toggle"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import type { AuthUser } from "@/lib/auth/user"
 import { findNavItem } from "@/lib/constants/navigation"
 
-export function AppHeader() {
+export function AppHeader({ user }: { user: AuthUser }) {
   const pathname = usePathname()
   const current = findNavItem(pathname)
 
@@ -18,6 +20,7 @@ export function AppHeader() {
       <span className="text-sm font-medium">{current?.title ?? "Overview"}</span>
       <div className="ml-auto flex items-center gap-1">
         <ModeToggle />
+        <UserMenu user={user} />
       </div>
     </header>
   )

@@ -22,10 +22,10 @@ export function CtaSection() {
             </p>
             <LinkButton
               size="lg"
-              href="/approvals"
+              href="/signup"
               className="mt-8 h-11 rounded-xl bg-[#04212b] px-6 text-white hover:bg-[#04212b]/85"
             >
-              Open dashboard
+              Get started
               <ArrowRightIcon data-icon="inline-end" />
             </LinkButton>
           </div>

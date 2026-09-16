@@ -35,8 +35,11 @@ export function LandingNav() {
 
         <div className="relative z-20 flex items-center gap-2">
           <ModeToggle />
-          <LinkButton size="sm" href="/approvals">
-            Open dashboard
+          <LinkButton size="sm" variant="ghost" href="/login">
+            Sign in
+          </LinkButton>
+          <LinkButton size="sm" href="/signup">
+            Get started
           </LinkButton>
         </div>
       </NavBody>
@@ -70,11 +73,20 @@ export function LandingNav() {
 
           <LinkButton
             size="lg"
-            href="/approvals"
+            variant="outline"
+            href="/login"
             className="mt-2 w-full"
             onClick={() => setIsOpen(false)}
           >
-            Open dashboard
+            Sign in
+          </LinkButton>
+          <LinkButton
+            size="lg"
+            href="/signup"
+            className="w-full"
+            onClick={() => setIsOpen(false)}
+          >
+            Get started
           </LinkButton>
         </MobileNavMenu>
       </MobileNav>
