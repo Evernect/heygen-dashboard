@@ -22,6 +22,15 @@ enum TopicStatus {
   ERROR
 }
 
+/// Where a topic came from. The content bank shows only MANUAL ones; a
+/// DAILY_NEWS topic is materialised by a daily news item when someone presses
+/// Generate on it, so that scripts keep exactly one required parent and the
+/// whole render-to-publish path downstream stays unchanged.
+enum TopicSource {
+  MANUAL
+  DAILY_NEWS
+}
+
 enum ScriptStatus {
   DRAFT // one of the generated options, waiting to be picked for a video
   RENDERING // picked; HeyGen render submitted, video not ready yet
@@ -45,6 +54,10 @@ model Topic {
   angle  String
   status TopicStatus @default(IDLE)
 
+  /// Defaults to MANUAL so every existing row and every existing write path
+  /// keeps behaving exactly as before.
+  source TopicSource @default(MANUAL)
+
   timesUsed  Int       @default(0)
   lastUsedAt DateTime?
 
@@ -57,11 +70,15 @@ model Topic {
 
   scripts Script[]
 
+  /// Set when this topic was materialised from a daily news item.
+  dailyNewsItem DailyNewsItem?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([userId, source, createdAt])
 }
 
 model Script {
@@ -186,6 +203,255 @@ model Insight {
   createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Daily news pipeline
+//
+// These seven models replace the Google Sheets tabs the pipeline used to run
+// on. Everything is scoped by userId in the application layer, like the rest of
+// the schema — there is no RLS.
+// ---------------------------------------------------------------------------
+
+enum NewsRunTrigger {
+  CRON
+  MANUAL
+}
+
+enum NewsRunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL /// finished and produced something, but some feeds or stages failed
+  FAILED
+  SKIPPED /// already run today, or the tenant is not configured for it
+}
+
+enum DailyNewsStatus {
+  NEW
+  GENERATING
+  GENERATED
+  ERROR
+  DISMISSED
+}
+
+/// One feed per row. `query` is passed through untouched: a `RSS:` prefix is a
+/// direct feed URL, `GEO:` is a Google News place feed, anything else is a
+/// Google News search.
+model NewsKeyword {
+  id     String @id @default(uuid())
+  userId String
+
+  /// The short human-facing code from the original sheet, e.g. "K01".
+  keywordId  String
+  type       String  @default("issue")
+  topicLabel String
+  query      String  @db.Text
+
+  /// Stored as arrays; the sheet pipe-joined them. An article has to mention
+  /// one of `terms` AND one of `places` to survive the relevance filter.
+  terms  String[]
+  places String[]
+
+  scope    String  @default("state")
+  priority Int     @default(3)
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, keywordId])
+  @@index([userId, active])
+}
+
+/// The candidate the pipeline writes for. One row per user, keyed like
+/// AppSettings. This is what used to be hardcoded in the n8n prompts, and it is
+/// also where the `district` and `named` scoring signals come from.
+model CampaignProfile {
+  userId String @id
+
+  candidateName       String
+  party               String?
+  office              String?
+  district            String?
+  districtDescription String? @db.Text
+  /// Place names that mark a story as local. Feeds the district score.
+  districtTerms       String[]
+  state               String?
+  electionDate        DateTime?
+  personaSummary      String? @db.Text
+
+  /// The run is scheduled in this zone, not in UTC. pg_cron fires on either
+  /// side of the DST boundary and the backend decides whose hour it is.
+  timezone     String  @default("America/Los_Angeles")
+  newsRunHour  Int     @default(7)
+  topicsPerRun Int     @default(3)
+  newsEnabled  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// What the candidate has already said. The selector prefers stories that touch
+/// one of these, and the angle writer must not contradict them.
+model CandidatePosition {
+  id     String @id @default(uuid())
+  userId String
+
+  issue          String
+  stance         String    @db.Text
+  sourceUrl      String?
+  lastVerifiedAt DateTime?
+  sortOrder      Int       @default(0)
+  active         Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+}
+
+/// Voice guidance learned from past performance. A table rather than a column
+/// so superseded versions stay readable.
+model StylePlaybook {
+  id     String @id @default(uuid())
+  userId String
+
+  label    String?
+  guidance String  @db.Text
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+/// Every cluster the pipeline has scored, and the thing the repeat penalty
+/// reads back seven days later.
+model NewsClusterHistory {
+  id     String @id @default(uuid())
+  userId String
+
+  runId     String
+  clusterId String
+
+  headline    String   @db.Text
+  topicLabels String?
+  /// The stopword-stripped token set, stored rather than recomputed so the
+  /// cross-run Jaccard comparison is both cheap and deterministic.
+  tokens      String[]
+
+  articleCount Int     @default(0)
+  outletCount  Int     @default(0)
+  score        Int     @default(0)
+  isDistrict   Boolean @default(false)
+  isNamed      Boolean @default(false)
+  topUrl       String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([runId])
+}
+
+/// One pipeline run for one tenant on one local day.
+model NewsRun {
+  id     String @id @default(uuid())
+  userId String
+
+  /// The calendar date in the tenant's own timezone, not UTC. Paired with
+  /// userId this is the idempotency key: a duplicate tick collides here and is
+  /// recorded as SKIPPED rather than doing the work twice.
+  localDate String
+
+  trigger NewsRunTrigger @default(CRON)
+  status  NewsRunStatus  @default(RUNNING)
+  attempt Int            @default(1)
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  keywordsUsed       Int @default(0)
+  feedsFetched       Int @default(0)
+  feedsFailed        Int @default(0)
+  articlesFound      Int @default(0)
+  articlesKept       Int @default(0)
+  clustersScored     Int @default(0)
+  articleTextsFetched Int @default(0)
+  itemsCreated       Int @default(0)
+
+  /// Non-fatal notes worth showing the user, e.g. that no Jina key was
+  /// configured so every summary came from headlines alone.
+  warnings String[]
+  error    String?  @db.Text
+
+  items DailyNewsItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, localDate])
+  @@index([userId, startedAt])
+}
+
+/// A topic the pipeline picked, waiting for someone to generate scripts from
+/// it. Deliberately separate from Topic: the content bank is for what a person
+/// put there.
+model DailyNewsItem {
+  id     String   @id @default(uuid())
+  userId String
+  runId  String?
+  run    NewsRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  /// e.g. "LN-20260917-1". Unique per user, so a repeated run cannot duplicate
+  /// a day's picks.
+  issueCode String
+
+  topic           String
+  angle           String  @db.Text
+  whyNow          String  @db.Text
+  importance      String  @default("Medium")
+  importanceScore Int     @default(0)
+  sourceSummary   String  @db.Text
+
+  /// True when no article text could be fetched and the summary came from
+  /// headlines alone.
+  headlinesOnly Boolean @default(false)
+
+  /// Empty when the angle sits consistently with the stated positions,
+  /// otherwise one line naming the conflict.
+  conflictFlag String? @db.Text
+
+  clusterId String?
+  /// The model answered with a cluster id that resolved to nothing. The item is
+  /// kept, flagged, and shown with a warning rather than being dropped.
+  unmatched Boolean @default(false)
+
+  headline    String?   @db.Text
+  outlet      String?
+  sourceUrls  String[]
+  outletCount Int       @default(0)
+  publishedAt DateTime?
+
+  localDate String
+  localTime String?
+
+  status              DailyNewsStatus @default(NEW)
+  generateRequestedAt DateTime?
+  generateError       String?
+
+  /// The Topic this item materialised when someone pressed Generate. Held so a
+  /// second press reuses it instead of creating another.
+  topicId        String? @unique
+  generatedTopic Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, issueCode])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([runId])
 }
 
 /// One HeyGen account per signed-in user. The API key is stored encrypted

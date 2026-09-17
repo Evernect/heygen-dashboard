@@ -1,3 +1,4 @@
+import type { DailyNewsStatus } from "@/lib/types/daily-news"
 import type { ScriptStatus } from "@/lib/types/script"
 import type { TopicStatus } from "@/lib/types/topic"
 
@@ -82,6 +83,49 @@ export const TOPIC_STATUS_META: Record<TopicStatus, StatusMeta> = {
     dotClassName: "bg-status-failed",
   },
 }
+
+export const DAILY_NEWS_STATUS_META: Record<DailyNewsStatus, StatusMeta> = {
+  NEW: {
+    label: "New",
+    className:
+      "ring-1 bg-status-pending/12 text-status-pending-foreground dark:text-status-pending ring-status-pending/25",
+    dotClassName: "bg-status-pending",
+  },
+  GENERATING: {
+    label: "Generating",
+    className:
+      "ring-1 bg-status-processing/12 text-status-processing-foreground dark:text-status-processing ring-status-processing/25",
+    dotClassName: "bg-status-processing",
+  },
+  GENERATED: {
+    label: "Generated",
+    className:
+      "ring-1 bg-status-approved/12 text-status-approved-foreground dark:text-status-approved ring-status-approved/25",
+    dotClassName: "bg-status-approved",
+  },
+  ERROR: {
+    label: "Error",
+    className:
+      "ring-1 bg-status-failed/12 text-status-failed-foreground dark:text-status-failed ring-status-failed/25",
+    dotClassName: "bg-status-failed",
+  },
+  DISMISSED: {
+    label: "Dismissed",
+    className: "ring-1 bg-muted text-muted-foreground ring-border",
+    dotClassName: "bg-muted-foreground/60",
+  },
+}
+
+export const DAILY_NEWS_TABS: {
+  value: DailyNewsStatus | "ALL"
+  label: string
+}[] = [
+  { value: "NEW", label: "New" },
+  { value: "GENERATED", label: "Generated" },
+  { value: "ERROR", label: "Error" },
+  { value: "DISMISSED", label: "Dismissed" },
+  { value: "ALL", label: "All" },
+]
 
 export const TOPIC_TABS: { value: TopicStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },

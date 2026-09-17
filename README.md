@@ -1,6 +1,7 @@
 # AI Video Automation
 
-**Flow:** add a topic (issue + angle) → generate **three** distinct scripts,
+**Flow:** add a topic by hand, or let the 7am news run pick three → generate
+**three** distinct scripts,
 each with five platform captions → pick one → HeyGen renders the avatar video →
 watch the preview → pick an upload time and approve → a Supabase `pg_cron` job
 posts it to Facebook and Instagram at that time → engagement metrics feed the
@@ -35,9 +36,11 @@ are re-hosted there because Meta's Graph API fetches the file from a public URL.
 cd backend
 cp .env.example .env        # then fill it in
 npm install
-npx prisma migrate dev --name init
-npm run db:seed -- <user-id>  # optional: example topics for one user
-npm run dev                 # http://localhost:4000
+npx prisma migrate deploy
+npm run db:seed -- <user-id>    # optional: example topics for one user
+npm run news:seed -- <user-id>  # optional: example news feeds and positions
+npm test                        # clustering, scoring and filtering
+npm run dev                     # http://localhost:4000
 ```
 
 Generate the cron secret with:
@@ -70,12 +73,40 @@ needs to stay open for a post to go out.
 
 1. Make the backend publicly reachable. `pg_net` cannot reach `localhost`, so
    for local development tunnel it: `ngrok http 4000`.
-2. Open `backend/prisma/migrations/manual/pg_cron_setup.sql`, replace
-   `<BACKEND_URL>` and `<CRON_SECRET>`, and run it in the Supabase SQL editor.
+2. Open `backend/prisma/sql/pg_cron_setup.sql`, replace `<BACKEND_URL>` and
+   `<CRON_SECRET>`, and run it in the Supabase SQL editor.
 
-The job calls `POST /api/cron/publish-due` every minute with an `x-cron-secret`
-header. Verification queries (did it fire? what did the backend answer?) are at
-the bottom of that SQL file.
+   It lives outside `prisma/migrations/` on purpose: Prisma treats every
+   directory in there as a migration it should apply, and this file is meant to
+   be run by hand against Supabase instead.
+
+That file registers two jobs: `publish-due` every minute, and `daily-news` every
+hour. Both carry an `x-cron-secret` header. Verification queries (did it fire?
+what did the backend answer?) are at the bottom of the SQL file.
+
+### Why the news job runs hourly
+
+It runs hourly; the pipeline does not. **The run time is a dashboard setting**
+(`newsRunHour`, in the tenant's own timezone), so the schedule cannot know it —
+`pg_cron` speaks only UTC, the offset moves twice a year under daylight saving,
+and two tenants can want different hours. Postgres therefore asks every hour and
+the backend answers "nobody due" for twenty-three of them, which costs
+twenty-three no-op HTTP requests a day.
+
+The payoff is that **changing the run time in the dashboard needs no SQL**. A
+fixed schedule would have to be re-registered by hand every time, and silently
+stop firing if anyone forgot.
+
+Being asked hourly also makes the job self-healing: the backend runs a tenant
+whose hour has *passed* and who has no run recorded for the day yet, so a tick
+that arrived while the server was asleep, deploying or cold-starting is picked
+up by the next one instead of losing the day. A run that started and **failed**
+is not retried automatically — it already spent whatever it spent, and repeating
+that hourly would multiply the cost of a persistent failure. **Run now** is the
+retry.
+
+Running twice is prevented by the unique `(userId, localDate)` key on `NewsRun`,
+never by the schedule.
 
 ---
 
@@ -114,6 +145,97 @@ the failure happened before the video existed.
 
 ---
 
+## Daily news
+
+Every morning the pipeline reads the feeds configured on **Daily News → News
+sources**, works out which stories are real and which matter to this campaign,
+and writes up to three topics with an angle already drafted in the candidate's
+voice. Each one has a **Generate** button that behaves exactly like the content
+bank's.
+
+The stages, in order: build one feed URL per active keyword → fetch them one at
+a time → drop anything older than 36 hours → **enforce relevance in code** →
+cluster near-identical headlines → score them → log every cluster → read the
+best article of each → ask the model to pick → ask it to write the angles →
+save.
+
+That relevance check is not redundant with the query. Google News ignores
+grouped boolean operators, so `(gas tax OR "fuel tax") California` constrains
+almost nothing; the `terms` and `places` columns are what actually decide, and
+they are applied in `article-filter.js` after the fetch. An article has to
+mention one term **and** one place to survive.
+
+### Why news topics are still Topic rows
+
+A daily news item is its own row in its own table, but pressing Generate
+materialises a `Topic` carrying `source: DAILY_NEWS` and then runs the same
+generation code the content bank does. The content bank lists `source: MANUAL`
+only, so news topics never appear there.
+
+The alternative — letting `Script.topicId` be null and giving a script a second
+kind of parent — breaks two queries *silently*. `busySibling` in
+`video-render.service.js` has no `userId` filter and is safe only because
+`topicId` is a non-null foreign key to a user-owned row: the key **is** the
+tenancy boundary there. With nulls it would match other tenants' scripts. The
+sibling lookups in `scripts.controller.js` and `groupScriptsByTopic` would
+likewise collapse every null into one bucket. Keeping one required parent costs
+one enum column and leaves all sixteen call sites that read `script.topic`
+untouched.
+
+One consequence worth knowing: Insights counts news-derived topics alongside
+manual ones in "top topics". That is deliberate — anything that became a video
+belongs there.
+
+### Degrading rather than failing
+
+Almost nothing in a morning run is worth failing the whole run over.
+
+| Situation | What happens |
+|---|---|
+| A feed rate-limits or times out | One retry honouring `Retry-After`, then that feed is skipped. The run is `PARTIAL` |
+| `JINA_API_KEY` is not set | Every summary is written from headlines, flagged in the UI, run succeeds |
+| Nothing clears the filters | `SUCCEEDED` with zero topics. The model is **never** called with an empty candidate list — handed nothing, it invents a story, which is the worst thing this pipeline can produce |
+| The model names a story that does not exist | The topic is kept and flagged "source unresolved" rather than dropped |
+| The angle call fails | Topics are saved with an empty angle for someone to write. The picks depend on a news window that has closed; an angle is a sentence a person can type |
+| The selection call fails | The run fails — there is nothing to build without picks |
+
+### Importing the sheets
+
+Both **Feeds** and **Stated positions** on the setup screen take a CSV or Excel
+upload, and both read the original Google Sheets tabs as they are — the
+`keyword_id` / `topic_label` / `position_summary` column names are understood
+directly, along with pipe-separated `terms` and `places`, `Y`/`N` for `active`,
+and Excel's serial date format for `last_verified`.
+
+Re-importing an edited sheet **updates** rather than duplicates: feeds are
+matched on their code and positions on their issue. The preview says which rows
+are new and which will overwrite something before anything is written.
+
+### Running it by hand
+
+**Run now** on the Daily News screen runs the whole pipeline immediately. It is
+the way to test a keyword change without waiting until morning.
+
+To see what the feeds and the scoring are doing before spending anything on the
+model:
+
+```bash
+cd backend
+npm run news:preview -- <user-id>   # stages 1-6 only, no LLM call
+```
+
+### One run per tenant per day
+
+The guard is a unique `(userId, localDate)` on `NewsRun`, claimed before a
+single feed is fetched — not the in-process flag beside it, which does nothing
+across a restart or a second instance. A duplicate tick collides there and is
+recorded as `SKIPPED`. `localDate` is the date in the tenant's **own** zone;
+`toISOString().slice(0, 10)` would be a different day from 4pm Pacific onwards
+and would defeat the key for part of every year.
+
+Forcing a re-run reopens that day's record and clears what the previous attempt
+logged, so the week's repeat check is not poisoned by the pipeline's own output.
+
 ## Connecting HeyGen
 
 Rendering runs on the signed-in user's own HeyGen account, not a shared
@@ -140,8 +262,10 @@ the dashboard always carry a session, so they always use that user's key.
 ## Tenancy
 
 Every row belongs to a Supabase user. `Topic`, `Script` and `Insight` carry a
-`userId`, as do `AppSettings` and `HeygenConnection`, and every route outside
-`/api/cron/*` requires an access token and filters by the caller.
+`userId`, as do `AppSettings`, `HeygenConnection` and every table behind the
+daily news pipeline — `NewsKeyword`, `CampaignProfile`, `CandidatePosition`,
+`StylePlaybook`, `NewsClusterHistory`, `NewsRun` and `DailyNewsItem`. Every
+route outside `/api/cron/*` requires an access token and filters by the caller.
 
 Lookups by id use `findFirst` with the owner folded into the query rather than
 `findUnique`, so another tenant's id comes back **404 rather than 403** — the
@@ -194,6 +318,30 @@ shared secret instead.
 | `GET` | `/api/heygen/connection` | The caller's HeyGen connection, or null |
 | `PUT` | `/api/heygen/connection` | Verify an API key against HeyGen and store it |
 | `DELETE` | `/api/heygen/connection` | Forget the stored key |
+| `GET` | `/api/news/keywords` | The caller's feed keywords |
+| `POST` | `/api/news/keywords` | Add a feed |
+| `POST` | `/api/news/keywords/bulk` | Import feeds, upserting on the keyword code |
+| `PATCH` | `/api/news/keywords/:id` | Edit a feed |
+| `DELETE` | `/api/news/keywords/:id` | Remove a feed |
+| `GET` | `/api/news/campaign-profile` | Who the pipeline writes for |
+| `PUT` | `/api/news/campaign-profile` | Save it |
+| `GET` | `/api/news/positions` | The candidate's stated positions |
+| `POST` | `/api/news/positions` | Add a position |
+| `POST` | `/api/news/positions/bulk` | Import positions, matching on the issue |
+| `PATCH` | `/api/news/positions/:id` | Edit a position |
+| `DELETE` | `/api/news/positions/:id` | Remove a position |
+| `GET` | `/api/news/style-playbook` | Voice guidance, newest first |
+| `POST` | `/api/news/style-playbook` | Add a version, superseding the last |
+| `DELETE` | `/api/news/style-playbook/:id` | Remove a version |
+| `GET` | `/api/daily-news` | List daily news topics (`?status=`, `?page=`) |
+| `PATCH` | `/api/daily-news/:id` | Edit the topic or angle before generating |
+| `POST` | `/api/daily-news/:id/generate` | Generate this topic's script options |
+| `POST` | `/api/daily-news/:id/dismiss` | Pass on a topic |
+| `DELETE` | `/api/daily-news/:id` | Delete a topic (blocked once scripts exist) |
+| `POST` | `/api/daily-news/run` | Run the pipeline now |
+| `GET` | `/api/daily-news/runs` | Recent runs |
+| `GET` | `/api/daily-news/runs/latest` | The run shown in the status strip |
+| `POST` | `/api/cron/daily-news` | Daily news webhook (`x-cron-secret`) |
 | `GET` | `/api/topics` | List content bank topics (`?status=`) |
 | `POST` | `/api/topics` | Create a topic |
 | `PATCH` | `/api/topics/:id` | Edit a topic |
@@ -241,4 +389,11 @@ selectable, so another one can be rendered in its place.
   whether they are configured but cannot change them; connecting Facebook and
   Instagram per account is still to come.
 - The OpenAI API key is deployment-wide too. Only the model, temperature,
-  reasoning effort and word range are per-user.
+  reasoning effort and word range are per-user. The same applies to
+  `JINA_API_KEY`, which the daily news run uses to read article text — it is
+  optional, and without it every summary is drawn from headlines alone.
+- The daily news run holds a Node event loop for minutes at a time, most of it
+  the deliberate spacing between feed requests. That is fine in the
+  long-running process it shares with the publishing tick, but it is the one
+  part of the pipeline that would have to become a queue if the backend ever
+  moved to a serverless runtime.

@@ -24,6 +24,11 @@ const schema = z.object({
   HEYGEN_API_KEY: z.string().optional(),
   HEYGEN_AVATAR_ID: z.string().optional(),
 
+  // Jina Reader, used to pull article text for the daily news pipeline.
+  // Optional on purpose: without it the run still completes, with every summary
+  // drawn from headlines alone.
+  JINA_API_KEY: z.string().optional(),
+
   FACEBOOK_PAGE_ID: z.string().optional(),
   INSTAGRAM_BUSINESS_ACCOUNT_ID: z.string().optional(),
   META_PAGE_ACCESS_TOKEN: z.string().optional(),

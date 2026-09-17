@@ -1,17 +1,17 @@
-import * as XLSX from "xlsx"
+import {
+  cell,
+  findColumn,
+  missingColumns,
+  readSheetRecords,
+  type ParsedRow,
+} from "@/lib/utils/parse-sheet"
 
-export interface ParsedTopicRow {
-  rowNumber: number
+export interface ParsedTopicRow extends ParsedRow {
   issue: string
   angle: string
-  error: string | null
 }
 
-export const MAX_BULK_TOPIC_ROWS = 200
-
-function findColumnKey(keys: string[], target: string) {
-  return keys.find((key) => key.trim().toLowerCase() === target)
-}
+export { MAX_IMPORT_ROWS as MAX_BULK_TOPIC_ROWS } from "@/lib/utils/parse-sheet"
 
 function validateRow(issue: string, angle: string): string | null {
   const hasIssue = issue.length >= 3
@@ -24,45 +24,16 @@ function validateRow(issue: string, angle: string): string | null {
 }
 
 export async function parseTopicsFile(file: File): Promise<ParsedTopicRow[]> {
-  let workbook: XLSX.WorkBook
+  const { records, keys } = await readSheetRecords(file)
 
-  try {
-    const buffer = await file.arrayBuffer()
-    workbook = XLSX.read(buffer, { type: "array" })
-  } catch {
-    throw new Error(
-      "Could not read this file — make sure it's a valid CSV or Excel file."
-    )
-  }
+  const issueKey = findColumn(keys, "issue")
+  const angleKey = findColumn(keys, "angle")
 
-  const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
-  })
-
-  if (records.length === 0) {
-    throw new Error("No rows found in this file.")
-  }
-
-  const keys = Object.keys(records[0])
-  const issueKey = findColumnKey(keys, "issue")
-  const angleKey = findColumnKey(keys, "angle")
-
-  if (!issueKey || !angleKey) {
-    throw new Error(
-      "Missing 'issue' and 'angle' columns — check the header row of your file."
-    )
-  }
-
-  if (records.length > MAX_BULK_TOPIC_ROWS) {
-    throw new Error(
-      `File has ${records.length} rows — the limit is ${MAX_BULK_TOPIC_ROWS} per import.`
-    )
-  }
+  if (!issueKey || !angleKey) throw missingColumns("issue", "angle")
 
   return records.map((record, index) => {
-    const issue = String(record[issueKey] ?? "").trim()
-    const angle = String(record[angleKey] ?? "").trim()
+    const issue = cell(record, issueKey)
+    const angle = cell(record, angleKey)
 
     return {
       rowNumber: index + 1,

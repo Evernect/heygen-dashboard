@@ -11,5 +11,6 @@ const router = Router()
 router.use(cronAuth)
 
 router.post("/publish-due", asyncHandler(controller.publishDue))
+router.post("/daily-news", asyncHandler(controller.newsDue))
 
 module.exports = router

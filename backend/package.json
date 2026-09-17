@@ -11,7 +11,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "news:preview": "node scripts/news-preview.js",
+    "news:seed": "node scripts/seed-news-config.js",
+    "test": "node --test \"test/*.test.js\""
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "fast-xml-parser": "^5.11.1",
     "openai": "^7.8.0",
     "pg": "^8.16.3",
     "zod": "^4.5.4"

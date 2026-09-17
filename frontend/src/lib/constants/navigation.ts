@@ -2,6 +2,7 @@ import {
   ChartLine,
   ClipboardCheck,
   Library,
+  Newspaper,
   Plug,
   Settings,
   type LucideIcon,
@@ -20,6 +21,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/approvals",
     icon: ClipboardCheck,
     description: "Review, approve and schedule generated scripts",
+  },
+  {
+    title: "Daily News",
+    href: "/daily-news",
+    icon: Newspaper,
+    description: "Topics picked from the news each morning",
   },
   {
     title: "Content Bank",
