@@ -4,9 +4,14 @@ const { Router } = require("express")
 
 const controller = require("../controllers/scripts.controller")
 const { validate } = require("../middleware/validate")
+const { requireUser } = require("../middleware/auth")
 const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
+
+// Scripts inherit their owner from their topic; every route is scoped to the
+// caller.
+router.use(requireUser)
 
 router.get(
   "/",

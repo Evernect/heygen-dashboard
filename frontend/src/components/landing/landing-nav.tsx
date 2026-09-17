@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 
 import { ReelflowWordmark } from "@/components/landing/reelflow-wordmark"
+import { SignOutButton } from "@/components/auth/sign-out-button"
 import { LinkButton } from "@/components/shared/link-button"
 import { ModeToggle } from "@/components/theme/mode-toggle"
 import {
@@ -15,13 +16,19 @@ import {
   NavBody,
   NavItems,
 } from "@/components/ui/resizable-navbar"
+import { DEFAULT_SIGNED_IN_ROUTE } from "@/lib/auth/routes"
+import type { AuthUser } from "@/lib/auth/user"
 
 const SECTIONS = [
   { name: "How it works", link: "#how-it-works" },
   { name: "Features", link: "#features" },
 ]
 
-export function LandingNav() {
+/**
+ * `user` is resolved on the server by the page, so the signed-in header is
+ * correct in the first paint — no flash of "Sign in" for someone who is.
+ */
+export function LandingNav({ user }: { user: AuthUser | null }) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -35,12 +42,24 @@ export function LandingNav() {
 
         <div className="relative z-20 flex items-center gap-2">
           <ModeToggle />
-          <LinkButton size="sm" variant="ghost" href="/login">
-            Sign in
-          </LinkButton>
-          <LinkButton size="sm" href="/signup">
-            Get started
-          </LinkButton>
+
+          {user ? (
+            <>
+              <LinkButton size="sm" href={DEFAULT_SIGNED_IN_ROUTE}>
+                Dashboard
+              </LinkButton>
+              <SignOutButton size="sm" />
+            </>
+          ) : (
+            <>
+              <LinkButton size="sm" variant="ghost" href="/login">
+                Sign in
+              </LinkButton>
+              <LinkButton size="sm" href="/signup">
+                Get started
+              </LinkButton>
+            </>
+          )}
         </div>
       </NavBody>
 
@@ -71,23 +90,44 @@ export function LandingNav() {
             </a>
           ))}
 
-          <LinkButton
-            size="lg"
-            variant="outline"
-            href="/login"
-            className="mt-2 w-full"
-            onClick={() => setIsOpen(false)}
-          >
-            Sign in
-          </LinkButton>
-          <LinkButton
-            size="lg"
-            href="/signup"
-            className="w-full"
-            onClick={() => setIsOpen(false)}
-          >
-            Get started
-          </LinkButton>
+          {user ? (
+            <>
+              <LinkButton
+                size="lg"
+                href={DEFAULT_SIGNED_IN_ROUTE}
+                className="mt-2 w-full"
+                onClick={() => setIsOpen(false)}
+              >
+                Dashboard
+              </LinkButton>
+              <SignOutButton
+                size="lg"
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsOpen(false)}
+              />
+            </>
+          ) : (
+            <>
+              <LinkButton
+                size="lg"
+                variant="outline"
+                href="/login"
+                className="mt-2 w-full"
+                onClick={() => setIsOpen(false)}
+              >
+                Sign in
+              </LinkButton>
+              <LinkButton
+                size="lg"
+                href="/signup"
+                className="w-full"
+                onClick={() => setIsOpen(false)}
+              >
+                Get started
+              </LinkButton>
+            </>
+          )}
         </MobileNavMenu>
       </MobileNav>
     </Navbar>

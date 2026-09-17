@@ -29,10 +29,36 @@ const TOPICS = [
   },
 ]
 
+/**
+ * Topics belong to a tenant, so seeding needs to know whose bank to fill.
+ * Pass the Supabase user id as an argument or as SEED_USER_ID:
+ *
+ *   npm run db:seed -- <user-id>
+ *
+ * Find it in the Supabase dashboard, or with:
+ *   select id, email from auth.users order by created_at;
+ */
+function resolveUserId() {
+  const userId = process.argv[2] ?? process.env.SEED_USER_ID
+
+  if (!userId) {
+    throw new Error(
+      "No user to seed for. Pass one as `npm run db:seed -- <user-id>`, or set SEED_USER_ID. " +
+        "Find it with: select id, email from auth.users order by created_at;"
+    )
+  }
+
+  return userId
+}
+
 async function main() {
+  const userId = resolveUserId()
+
   for (const topic of TOPICS) {
+    // Scoped by owner: the same example issue in another tenant's bank is a
+    // different topic, not a duplicate.
     const existing = await prisma.topic.findFirst({
-      where: { issue: topic.issue },
+      where: { issue: topic.issue, userId },
     })
 
     if (existing) {
@@ -40,7 +66,7 @@ async function main() {
       continue
     }
 
-    await prisma.topic.create({ data: topic })
+    await prisma.topic.create({ data: { ...topic, userId } })
     console.log(`Created: ${topic.issue}`)
   }
 }

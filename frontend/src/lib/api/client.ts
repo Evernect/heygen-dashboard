@@ -1,3 +1,5 @@
+import { isSupabaseConfigured } from "@/lib/supabase/config"
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 export class ApiError extends Error {
@@ -23,6 +25,26 @@ export class ApiConfigError extends Error {
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined | null>
+  /**
+   * Server components have no browser session to read, so they pass the
+   * access token they already hold. In the browser it is resolved for you.
+   */
+  accessToken?: string | null
+}
+
+/**
+ * The signed-in user's access token, read from the browser session. The
+ * backend needs it to know whose HeyGen credentials a request should run
+ * with — an anonymous request still works, it just gets no connection.
+ */
+async function browserAccessToken() {
+  if (typeof window === "undefined" || !isSupabaseConfigured) return null
+
+  // Imported lazily so the Supabase client never lands in a server bundle.
+  const { createClient } = await import("@/lib/supabase/client")
+  const { data } = await createClient().auth.getSession()
+
+  return data.session?.access_token ?? null
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]) {
@@ -44,12 +66,15 @@ function buildUrl(path: string, query?: RequestOptions["query"]) {
 
 export async function apiRequest<T>(
   path: string,
-  { body, query, headers, ...init }: RequestOptions = {}
+  { body, query, headers, accessToken, ...init }: RequestOptions = {}
 ): Promise<T> {
+  const token = accessToken ?? (await browserAccessToken())
+
   const response = await fetch(buildUrl(path, query), {
     ...init,
     headers: {
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -87,6 +112,8 @@ export const api = {
     apiRequest<T>(path, { ...options, method: "GET" }),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     apiRequest<T>(path, { ...options, method: "POST", body }),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     apiRequest<T>(path, { ...options, method: "PATCH", body }),
   delete: <T>(path: string, options?: RequestOptions) =>

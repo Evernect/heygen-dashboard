@@ -2,10 +2,11 @@
 
 const { prisma } = require("../lib/prisma")
 
-// Latest snapshot per platform post.
-async function loadLatestMetrics() {
+// Latest snapshot per platform post, for one tenant. A post has no owner of
+// its own; it inherits one from the script it was published for.
+async function loadLatestMetrics(userId) {
   const posts = await prisma.platformPost.findMany({
-    where: { status: "SUCCESS" },
+    where: { status: "SUCCESS", script: { userId } },
     include: {
       metrics: { orderBy: { fetchedAt: "desc" }, take: 1 },
       script: {
@@ -38,7 +39,7 @@ async function loadLatestMetrics() {
 }
 
 async function getSummary(req, res) {
-  const rows = await loadLatestMetrics()
+  const rows = await loadLatestMetrics(req.user.id)
 
   const totalViews = rows.reduce((sum, row) => sum + row.views, 0)
   const totalEngagement = rows.reduce((sum, row) => sum + row.engagement, 0)
@@ -119,6 +120,7 @@ async function getSummary(req, res) {
 
 async function listInsights(req, res) {
   const insights = await prisma.insight.findMany({
+    where: { userId: req.user.id },
     orderBy: { createdAt: "desc" },
     take: 100,
   })

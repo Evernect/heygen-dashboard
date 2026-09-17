@@ -27,6 +27,18 @@ const bulkCreateTopicsSchema = z.object({
 
 const DEFAULT_TOPICS_PAGE_SIZE = 20
 
+/**
+ * Scopes a lookup by id to the caller.
+ *
+ * `findFirst` rather than `findUnique`: a unique lookup can only match on the
+ * id, so it would hand back another tenant's topic and leave the ownership
+ * check to the caller. Folding the owner into the query means someone else's
+ * id is simply not found.
+ */
+function owned(req) {
+  return { id: req.params.id, userId: req.user.id }
+}
+
 const listTopicsQuerySchema = z.object({
   status: z.enum(TOPIC_STATUSES).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -46,7 +58,7 @@ async function listTopics(req, res) {
     pageSize = DEFAULT_TOPICS_PAGE_SIZE,
   } = req.validatedQuery ?? {}
 
-  const where = status ? { status } : undefined
+  const where = { userId: req.user.id, ...(status ? { status } : {}) }
 
   const [topics, total] = await prisma.$transaction([
     prisma.topic.findMany({
@@ -62,19 +74,21 @@ async function listTopics(req, res) {
 }
 
 async function createTopic(req, res) {
-  const topic = await prisma.topic.create({ data: req.body })
+  const topic = await prisma.topic.create({
+    data: { ...req.body, userId: req.user.id },
+  })
   res.status(201).json(topic)
 }
 
 async function bulkCreateTopics(req, res) {
-  const created = await prisma.topic.createManyAndReturn({ data: req.body.topics })
+  const created = await prisma.topic.createManyAndReturn({
+    data: req.body.topics.map((topic) => ({ ...topic, userId: req.user.id })),
+  })
   res.status(201).json({ created, count: created.length })
 }
 
 async function updateTopic(req, res) {
-  const existing = await prisma.topic.findUnique({
-    where: { id: req.params.id },
-  })
+  const existing = await prisma.topic.findFirst({ where: owned(req) })
   if (!existing) throw notFound("Topic not found")
 
   const topic = await prisma.topic.update({
@@ -86,8 +100,8 @@ async function updateTopic(req, res) {
 }
 
 async function deleteTopic(req, res) {
-  const existing = await prisma.topic.findUnique({
-    where: { id: req.params.id },
+  const existing = await prisma.topic.findFirst({
+    where: owned(req),
     include: { _count: { select: { scripts: true } } },
   })
   if (!existing) throw notFound("Topic not found")
@@ -111,7 +125,7 @@ const IN_FLIGHT_SCRIPT_STATUSES = [
 
 // Runs the LLM for one topic, producing several options to pick from
 async function generateFromTopic(req, res) {
-  const topic = await prisma.topic.findUnique({ where: { id: req.params.id } })
+  const topic = await prisma.topic.findFirst({ where: owned(req) })
   if (!topic) throw notFound("Topic not found")
 
   if (topic.status === "GENERATING") {
@@ -141,6 +155,7 @@ async function generateFromTopic(req, res) {
     const generated = await generateScriptVariants({
       issue: topic.issue,
       angle: topic.angle,
+      userId: topic.userId,
     })
 
     const [, scripts] = await prisma.$transaction([
@@ -151,6 +166,7 @@ async function generateFromTopic(req, res) {
         data: generated.map((variant) => ({
           ...variant,
           topicId: topic.id,
+          userId: topic.userId,
           status: "DRAFT",
         })),
       }),

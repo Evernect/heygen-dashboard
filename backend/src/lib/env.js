@@ -23,13 +23,16 @@ const schema = z.object({
 
   HEYGEN_API_KEY: z.string().optional(),
   HEYGEN_AVATAR_ID: z.string().optional(),
-  HEYGEN_VOICE_ID: z.string().optional(),
 
   FACEBOOK_PAGE_ID: z.string().optional(),
   INSTAGRAM_BUSINESS_ACCOUNT_ID: z.string().optional(),
   META_PAGE_ACCESS_TOKEN: z.string().optional(),
 
   CRON_SECRET: z.string().optional(),
+
+  // 32 bytes, hex or base64. Encrypts third-party credentials at rest.
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
 
   DRY_RUN_HEYGEN: z
     .string()

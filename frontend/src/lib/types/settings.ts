@@ -13,11 +13,12 @@ export const REASONING_EFFORTS = [
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
 
 export interface AppSettings {
-  id: string
+  /** The Supabase user these settings belong to. Settings are per-tenant. */
+  userId: string
 
+  heygenAvatarGroupId: string | null
   heygenAvatarLookId: string | null
   heygenAvatarEngine: HeygenEngine
-  heygenVoiceId: string | null
   heygenVoiceSpeed: number
   heygenVoiceLocale: string
 
@@ -30,7 +31,7 @@ export interface AppSettings {
   targetWordsMax: number
 }
 
-export type UpdateSettingsInput = Partial<Omit<AppSettings, "id">>
+export type UpdateSettingsInput = Partial<Omit<AppSettings, "userId">>
 
 export interface SettingsResponse {
   settings: AppSettings
@@ -40,26 +41,29 @@ export interface SettingsResponse {
   }
 }
 
+/** A character. Holds one or more looks — outfits, poses, framings. */
+export interface HeygenAvatarGroup {
+  id: string
+  name: string
+  gender: string | null
+  previewImageUrl: string | null
+  previewVideoUrl: string | null
+  looksCount: number
+  status: string | null
+}
+
 export interface HeygenAvatarLook {
   id: string
   name: string
+  groupId: string | null
   avatarType: string | null
   gender: string | null
   previewImageUrl: string | null
-  defaultVoiceId: string | null
+  /** Null for photo avatars, which only ever have a still. */
+  previewVideoUrl: string | null
   supportedEngines: HeygenEngine[]
   preferredOrientation: string | null
-}
-
-export interface HeygenVoice {
-  id: string
-  name: string
-  language: string | null
-  gender: string | null
-  previewAudioUrl: string | null
-  supportsPause: boolean
-  supportsLocale: boolean
-  type: string | null
+  status: string | null
 }
 
 export interface HeygenPage<T> {

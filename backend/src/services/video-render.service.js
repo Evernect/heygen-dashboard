@@ -28,6 +28,11 @@ async function markRenderFailed(scriptId, error) {
   logger.error(`Script ${scriptId} render failed: ${message}`)
 }
 
+/**
+ * `userId` is never passed in: it is read off the script itself, so a render
+ * started from a request and one advanced by the cron tick both run on the
+ * owner's HeyGen key rather than on whoever happened to trigger it.
+ */
 async function startRender(scriptId) {
   const script = await prisma.script.findUnique({ where: { id: scriptId } })
   if (!script) return null
@@ -71,6 +76,7 @@ async function startRender(scriptId) {
     const videoId = await heygen.createVideo({
       title: script.title,
       scriptText: script.scriptText,
+      userId: script.userId,
     })
 
     logger.info(`Script ${script.id}: render submitted (${videoId})`)
@@ -98,7 +104,9 @@ async function advanceRender(scriptId) {
   }
 
   try {
-    const result = await heygen.getVideoStatus(script.heygenVideoId)
+    const result = await heygen.getVideoStatus(script.heygenVideoId, {
+      userId: script.userId,
+    })
 
     if (result.status === "processing") {
       const startedAt = script.renderStartedAt?.getTime() ?? 0

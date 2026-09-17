@@ -14,9 +14,9 @@ const MAX_WORDS = 400
 
 const updateSettingsSchema = z
   .object({
+    heygenAvatarGroupId: z.string().trim().min(1).nullable(),
     heygenAvatarLookId: z.string().trim().min(1).nullable(),
     heygenAvatarEngine: z.enum(HEYGEN_ENGINES),
-    heygenVoiceId: z.string().trim().min(1).nullable(),
     heygenVoiceSpeed: z.number().min(0.5).max(1.5),
     heygenVoiceLocale: z.string().trim().min(2).max(10),
 
@@ -42,14 +42,14 @@ const updateSettingsSchema = z
 
 const heygenListQuerySchema = z.object({
   ownership: z.enum(["public", "private"]).optional(),
-  language: z.string().trim().min(1).optional(),
-  gender: z.enum(["male", "female"]).optional(),
+  groupId: z.string().trim().min(1).optional(),
   token: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  // HeyGen caps both avatar endpoints at 50 per page and 400s above it.
+  limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 
 async function readSettings(req, res) {
-  const settings = await getSettings()
+  const settings = await getSettings(req.user.id)
 
   res.json({
     settings,
@@ -61,7 +61,7 @@ async function readSettings(req, res) {
 }
 
 async function writeSettings(req, res) {
-  const current = await getSettings()
+  const current = await getSettings(req.user.id)
   const merged = { ...current, ...req.body }
 
   if (merged.targetWordsMin > merged.targetWordsMax) {
@@ -76,29 +76,31 @@ async function writeSettings(req, res) {
     })
   }
 
-  const settings = await updateSettings(req.body)
+  const settings = await updateSettings(req.user.id, req.body)
   res.json({ settings })
+}
+
+async function listAvatarGroups(req, res) {
+  const query = req.validatedQuery ?? {}
+  res.json(
+    await heygen.listAvatarGroups({
+      ownership: query.ownership,
+      limit: query.limit,
+      token: query.token,
+      userId: req.user?.id,
+    })
+  )
 }
 
 async function listAvatarLooks(req, res) {
   const query = req.validatedQuery ?? {}
   res.json(
     await heygen.listAvatarLooks({
+      groupId: query.groupId,
       ownership: query.ownership,
       limit: query.limit,
       token: query.token,
-    })
-  )
-}
-
-async function listVoices(req, res) {
-  const query = req.validatedQuery ?? {}
-  res.json(
-    await heygen.listVoices({
-      language: query.language,
-      gender: query.gender,
-      limit: query.limit,
-      token: query.token,
+      userId: req.user?.id,
     })
   )
 }
@@ -110,8 +112,8 @@ async function listOpenAiModels(req, res) {
 module.exports = {
   readSettings,
   writeSettings,
+  listAvatarGroups,
   listAvatarLooks,
-  listVoices,
   listOpenAiModels,
   schemas: { updateSettingsSchema, heygenListQuerySchema },
 }

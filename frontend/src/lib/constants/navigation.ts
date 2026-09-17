@@ -2,6 +2,7 @@ import {
   ChartLine,
   ClipboardCheck,
   Library,
+  Plug,
   Settings,
   type LucideIcon,
 } from "lucide-react"
@@ -31,6 +32,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/insights",
     icon: ChartLine,
     description: "How published videos are performing",
+  },
+  {
+    title: "Integrations",
+    href: "/integrations",
+    icon: Plug,
+    description: "The accounts this pipeline renders and publishes with",
   },
   {
     title: "Settings",

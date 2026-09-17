@@ -102,9 +102,10 @@ async function generateScriptVariants({
   issue,
   angle,
   variantCount = SCRIPT_VARIANT_COUNT,
+  userId,
 }) {
   const openai = getClient()
-  const settings = await getSettings()
+  const settings = await getSettings(userId)
 
   const wordsMin = settings.targetWordsMin
   const wordsMax = settings.targetWordsMax

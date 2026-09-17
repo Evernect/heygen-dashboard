@@ -51,21 +51,28 @@ model Topic {
   generateRequestedAt DateTime?
   generateError       String?
 
-  createdBy String?
+  /// The Supabase user that owns this topic. Every read is scoped by it, so
+  /// one tenant's content bank is invisible to another.
+  userId String
 
   scripts Script[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
-  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model Script {
   id      String @id @default(uuid())
   topicId String
   topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  /// Copied from the topic rather than joined through it. The cron tick
+  /// claims scripts without a session, and this is how it knows whose HeyGen
+  /// credentials to render and poll with.
+  userId String
 
   title String
   scriptText        String  @db.Text
@@ -102,7 +109,8 @@ model Script {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
+  @@index([userId, status])
+  // Not user-scoped: the cron tick sweeps every tenant's due work at once.
   @@index([status, scheduledAt])
   @@index([topicId])
   @@index([topicId, variantIndex])
@@ -143,12 +151,15 @@ model VideoMetric {
   @@index([platformPostId, fetchedAt])
 }
 
+/// One row per signed-in user. There is no foreign key to auth.users -
+/// Supabase owns that table and Prisma does not manage its schema - so rows
+/// are keyed by the Supabase user id, exactly like HeygenConnection.
 model AppSettings {
-  id String @id @default("singleton")
+  userId String @id
 
+  heygenAvatarGroupId String?
   heygenAvatarLookId  String?
   heygenAvatarEngine  String  @default("avatar_iv")
-  heygenVoiceId       String?
   heygenVoiceSpeed    Float   @default(1.0)
   heygenVoiceLocale   String  @default("en-US")
 
@@ -166,6 +177,7 @@ model AppSettings {
 
 model Insight {
   id             String   @id @default(uuid())
+  userId         String
   category       String
   subject        String
   finding        String   @db.Text
@@ -173,5 +185,24 @@ model Insight {
   confidence     String
   createdAt      DateTime @default(now())
 
-  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+/// One HeyGen account per signed-in user. The API key is stored encrypted
+/// (AES-256-GCM) and never leaves the backend — the dashboard only ever sees
+/// the masked hint and the account it belongs to.
+model HeygenConnection {
+  userId String @id
+
+  apiKeyCipher String @db.Text
+  apiKeyHint   String
+
+  accountEmail    String?
+  accountUsername String?
+
+  connectedAt    DateTime  @default(now())
+  lastVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

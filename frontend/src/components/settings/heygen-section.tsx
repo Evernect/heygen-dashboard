@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Clapperboard, Mic } from "lucide-react"
+import { AlertTriangle, Clapperboard, Users } from "lucide-react"
 
+import { AvatarPreview } from "@/components/settings/avatar-preview"
 import { SettingField, SliderField } from "@/components/settings/setting-field"
 import {
   SettingsGrid,
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAsyncData } from "@/hooks/use-async-data"
-import { listAvatarLooks, listVoices } from "@/lib/api/settings"
+import { listAvatarGroups, listAvatarLooks } from "@/lib/api/settings"
 import {
   ENGINE_HINTS,
   ENGINE_LABELS,
@@ -28,6 +29,10 @@ import {
 
 type Patch = (patch: Partial<AppSettings>) => void
 
+function looksLabel(count: number) {
+  return `${count} look${count === 1 ? "" : "s"}`
+}
+
 export function HeygenSection({
   draft,
   patch,
@@ -37,16 +42,24 @@ export function HeygenSection({
   patch: Patch
   disabled?: boolean
 }) {
-  const looks = useAsyncData(() => listAvatarLooks({ limit: 50 }), [])
+  const groups = useAsyncData(() => listAvatarGroups({ limit: 50 }), [])
 
-  const voices = useAsyncData(() => listVoices({ limit: 100 }), [])
+  const groupId = draft.heygenAvatarGroupId
 
-  const selectedLook = looks.data?.items.find(
-    (look) => look.id === draft.heygenAvatarLookId
+  // Looks are fetched per group rather than all at once: the group filter is
+  // what keeps this to a single page, and HeyGen caps a page at 50.
+  const looks = useAsyncData(
+    () =>
+      groupId
+        ? listAvatarLooks({ groupId, limit: 50 })
+        : Promise.resolve({ items: [], hasMore: false, nextToken: null }),
+    [groupId]
   )
-  const selectedVoice = voices.data?.items.find(
-    (voice) => voice.id === draft.heygenVoiceId
-  )
+
+  const selectedGroup = groups.data?.items.find((group) => group.id === groupId)
+  const selectedLook =
+    looks.data?.items.find((look) => look.id === draft.heygenAvatarLookId) ??
+    null
 
   const allowedEngines: HeygenEngine[] =
     selectedLook && selectedLook.supportedEngines.length > 0
@@ -54,34 +67,96 @@ export function HeygenSection({
       : [...HEYGEN_ENGINES]
 
   const engineUnsupported =
-    selectedLook !== undefined &&
+    selectedLook !== null &&
     selectedLook.supportedEngines.length > 0 &&
     !selectedLook.supportedEngines.includes(draft.heygenAvatarEngine)
 
-  const catalogError = looks.error ?? voices.error
+  const catalogError = groups.error ?? looks.error
+
+  function handleGroupChange(nextGroupId: string | null) {
+    // The old look belongs to the old character, so it cannot survive the
+    // switch. Clearing it is what stops a mismatched pair being saved.
+    patch({
+      heygenAvatarGroupId: nextGroupId || null,
+      heygenAvatarLookId: null,
+    })
+  }
 
   return (
     <SettingsSection
       icon={Clapperboard}
       title="HeyGen render"
-      description="Which avatar speaks the script, in which voice, on which rendering engine."
+      description="Which avatar speaks the script, in which look, on which rendering engine. The avatar's own voice is used."
     >
       <SettingsGrid>
         {catalogError && (
           <p className="flex items-start gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive sm:col-span-2 lg:col-span-6">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>
-              Could not reach HeyGen ({catalogError.message}). The IDs below can
-              still be typed in by hand and saved.
+              Could not reach HeyGen ({catalogError.message}). The look id below
+              can still be typed in by hand and saved.
             </span>
           </p>
         )}
 
         <SettingField
-          className="lg:col-span-3"
-          label="Avatar ID"
+          className="lg:col-span-4"
+          label="Avatar"
+          htmlFor="heygen-avatar-group"
+          description={
+            groups.data?.hasMore
+              ? "Showing the first 50 avatars on your account."
+              : selectedGroup
+                ? `${looksLabel(selectedGroup.looksCount)} available.`
+                : "The character. Each one has its own set of looks."
+          }
+        >
+          <Select
+            value={groupId ?? ""}
+            onValueChange={handleGroupChange}
+            disabled={disabled || groups.isLoading}
+          >
+            <SelectTrigger id="heygen-avatar-group" className="w-full">
+              <SelectValue
+                placeholder={
+                  groups.isLoading ? "Loading avatars…" : "Choose an avatar"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              {groups.data?.items.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  <Users className="size-3.5 text-muted-foreground" />
+                  {group.name}
+                  <span className="text-muted-foreground">
+                    {` · ${looksLabel(group.looksCount)}`}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingField>
+
+        {/*
+          Spans both rows of the left-hand fields, so the preview sits beside
+          the pair it belongs to rather than pushing them around as it swaps.
+        */}
+        <div className="row-span-2 flex justify-center lg:col-span-2 lg:justify-end">
+          <AvatarPreview
+            look={selectedLook}
+            isLoading={Boolean(groupId) && looks.isLoading}
+          />
+        </div>
+
+        <SettingField
+          className="lg:col-span-4"
+          label="Look"
           htmlFor="heygen-avatar-look"
-          description="The character, outfit and pose. This is the id HeyGen renders with."
+          description={
+            looks.data?.hasMore
+              ? "Showing the first 50 looks in this avatar."
+              : "The outfit and framing. This is the id HeyGen renders with."
+          }
         >
           {looks.data && looks.data.items.length > 0 ? (
             <Select
@@ -92,12 +167,22 @@ export function HeygenSection({
               disabled={disabled || looks.isLoading}
             >
               <SelectTrigger id="heygen-avatar-look" className="w-full">
-                <SelectValue placeholder="Choose an avatar" />
+                <SelectValue placeholder="Choose a look" />
               </SelectTrigger>
               <SelectContent className="max-h-64">
                 {looks.data.items.map((look) => (
-                  <SelectItem key={look.id} value={look.id}>
+                  <SelectItem
+                    key={look.id}
+                    value={look.id}
+                    // A look that is still training cannot be rendered with.
+                    disabled={
+                      look.status !== null && look.status !== "completed"
+                    }
+                  >
                     {look.name}
+                    {look.status && look.status !== "completed"
+                      ? ` · ${look.status}`
+                      : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -108,9 +193,11 @@ export function HeygenSection({
               value={draft.heygenAvatarLookId ?? ""}
               disabled={disabled}
               placeholder={
-                looks.isLoading
-                  ? "Loading avatars…"
-                  : "No avatars found — paste an avatar id"
+                !groupId
+                  ? "Choose an avatar first"
+                  : looks.isLoading
+                    ? "Loading looks…"
+                    : "No looks found — paste a look id"
               }
               onChange={(event) =>
                 patch({ heygenAvatarLookId: event.target.value || null })
@@ -120,15 +207,16 @@ export function HeygenSection({
         </SettingField>
 
         <SettingField
-          className="lg:col-span-3"
+          className="lg:col-span-2"
           label="Avatar model"
           htmlFor="heygen-engine"
           description={
             engineUnsupported ? (
               <span className="flex items-start gap-1.5 text-destructive">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                This avatar does not support {ENGINE_LABELS[draft.heygenAvatarEngine]}.
-                HeyGen will reject the render.
+                This look does not support{" "}
+                {ENGINE_LABELS[draft.heygenAvatarEngine]}. HeyGen will reject
+                the render.
               </span>
             ) : (
               ENGINE_HINTS[draft.heygenAvatarEngine]
@@ -158,55 +246,6 @@ export function HeygenSection({
               ))}
             </SelectContent>
           </Select>
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="Voice"
-          htmlFor="heygen-voice"
-          description={
-            selectedVoice && !selectedVoice.supportsPause ? (
-              <span className="flex items-start gap-1.5 text-status-pending-foreground dark:text-status-pending">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                This voice does not support pause tags. The script&apos;s SSML
-                breaks will be ignored or read aloud.
-              </span>
-            ) : (
-              "Only voices that support SSML pauses keep the script's pacing."
-            )
-          }
-        >
-          {voices.data && voices.data.items.length > 0 ? (
-            <Select
-              value={draft.heygenVoiceId ?? ""}
-              onValueChange={(next) => patch({ heygenVoiceId: next || null })}
-              disabled={disabled || voices.isLoading}
-            >
-              <SelectTrigger id="heygen-voice" className="w-full">
-                <SelectValue placeholder="Choose a voice" />
-              </SelectTrigger>
-              <SelectContent className="max-h-64">
-                {voices.data.items.map((voice) => (
-                  <SelectItem key={voice.id} value={voice.id}>
-                    <Mic className="size-3.5 text-muted-foreground" />
-                    {voice.name}
-                    {voice.language ? ` · ${voice.language}` : ""}
-                    {voice.supportsPause ? "" : " · no pauses"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              id="heygen-voice"
-              value={draft.heygenVoiceId ?? ""}
-              disabled={disabled}
-              placeholder={voices.isLoading ? "Loading voices…" : "Voice id"}
-              onChange={(event) =>
-                patch({ heygenVoiceId: event.target.value || null })
-              }
-            />
-          )}
         </SettingField>
 
         <SettingField

@@ -36,7 +36,7 @@ cd backend
 cp .env.example .env        # then fill it in
 npm install
 npx prisma migrate dev --name init
-npm run db:seed             # optional: a few example topics
+npm run db:seed -- <user-id>  # optional: example topics for one user
 npm run dev                 # http://localhost:4000
 ```
 
@@ -45,6 +45,10 @@ Generate the cron secret with:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+`CREDENTIAL_ENCRYPTION_KEY` encrypts each user's stored HeyGen key at rest.
+Generate it the same way as the cron secret. Without it the connect screen
+refuses to save anything.
 
 Leave `DRY_RUN_HEYGEN` and `DRY_RUN_META` set to `true` while developing - the
 pipeline runs end to end but never spends HeyGen credits or posts to real
@@ -110,13 +114,86 @@ the failure happened before the video existed.
 
 ---
 
+## Connecting HeyGen
+
+Rendering runs on the signed-in user's own HeyGen account, not a shared
+deployment-wide key. A user who has not connected one is redirected out of the
+dashboard to `/connect-heygen` and cannot get past it, because nothing in the
+pipeline works without it.
+
+The dashboard's **Integrations** tab is where an account is connected, updated
+or disconnected. Settings keeps only the render configuration — which avatar,
+look and engine — so the account and the way it is used stay separate.
+
+The key is verified before it is stored: `PUT /api/heygen/connection` calls
+`GET /v3/users/me` with it, and a key HeyGen refuses comes back as a 401 the
+form shows against the field rather than being saved and failing later at
+render time. What is stored is AES-256-GCM ciphertext plus a masked hint
+(`sk_…VZAX`); the key itself is never sent back to the browser. Signing out and
+back in shows the connected account again, and the same panel on **Settings**
+replaces the key or disconnects entirely.
+
+`HEYGEN_API_KEY` in `.env` is now only a fallback for work that has no user
+attached — the `pg_cron` tick advancing an in-flight render. Requests made by
+the dashboard always carry a session, so they always use that user's key.
+
+## Tenancy
+
+Every row belongs to a Supabase user. `Topic`, `Script` and `Insight` carry a
+`userId`, as do `AppSettings` and `HeygenConnection`, and every route outside
+`/api/cron/*` requires an access token and filters by the caller.
+
+Lookups by id use `findFirst` with the owner folded into the query rather than
+`findUnique`, so another tenant's id comes back **404 rather than 403** — the
+response does not reveal that the row exists at all.
+
+`Script.userId` is denormalised from its topic instead of being joined through
+it, and that is what lets background work stay tenant-correct: the `pg_cron`
+tick claims due scripts across every tenant, then renders and polls each one
+with **its owner's** HeyGen key and settings. `startRender` and `advanceRender`
+take no user argument for exactly this reason — they read the owner off the
+script, so a render behaves the same whether a person or the scheduler
+advanced it.
+
+`AppSettings` has one row per user rather than a shared `singleton`. A user who
+has never opened the Settings page has no row and runs on the environment
+defaults; the row is written the first time they save. Script generation then
+uses that user's OpenAI model and word range, and a render uses their avatar,
+look and engine.
+
+`approvedBy` records which user approved a script. Seeding needs an owner, so
+`npm run db:seed -- <user-id>` takes one (`select id, email from auth.users`).
+
+## Picking an avatar
+
+HeyGen models avatars in two levels: a **group** is a character, and each group
+holds one or more **looks** (outfit, pose, framing). The look id is what
+`POST /v3/videos` takes as `avatar_id`, so Settings picks a group first and
+then a look within it, and stores both — the group id only so the saved look
+can be found again on the next page load without scanning every group.
+
+Each look carries its own `preview_image_url`, so the preview beside the
+dropdowns updates with no extra request, and shows the saved avatar when the
+page is reopened. Those URLs are signed and expire, which is why the preview is
+a plain `<img>` rather than `next/image`: the optimiser would cache a copy that
+outlives the signature.
+
+Both endpoints page at 50 items; the UI says so when there is more than one
+page rather than pretending the list is complete.
+
 ## API
 
-Everything is open except `/api/cron/*`, which requires the shared secret.
-There is no authentication yet.
+Every route requires a Supabase access token (`Authorization: Bearer …`, sent
+automatically by the dashboard's API client) and returns only that user's rows.
+The exception is `/api/cron/*`, which has no user and authenticates with the
+shared secret instead.
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/api/integrations` | HeyGen connection plus Meta's env-derived status |
+| `GET` | `/api/heygen/connection` | The caller's HeyGen connection, or null |
+| `PUT` | `/api/heygen/connection` | Verify an API key against HeyGen and store it |
+| `DELETE` | `/api/heygen/connection` | Forget the stored key |
 | `GET` | `/api/topics` | List content bank topics (`?status=`) |
 | `POST` | `/api/topics` | Create a topic |
 | `PATCH` | `/api/topics/:id` | Edit a topic |
@@ -131,6 +208,8 @@ There is no authentication yet.
 | `POST` | `/api/scripts/:id/reject` | `{ reason }` |
 | `POST` | `/api/scripts/:id/retry` | Re-queue a failed script |
 | `POST` | `/api/cron/publish-due` | Scheduling webhook (`x-cron-secret`) |
+| `GET` | `/api/settings/heygen/avatar-groups` | The caller's HeyGen avatars (characters) |
+| `GET` | `/api/settings/heygen/avatar-looks` | Looks, filterable by `?groupId=` |
 | `GET` | `/api/metrics/summary` | Aggregates for the Insights screen |
 | `GET` | `/api/insights` | LLM recommendations |
 
@@ -156,4 +235,10 @@ selectable, so another one can be rendered in its place.
   unimplemented rather than posting. This matches the original n8n workflow.
 - Metrics collection and the LLM insight analysis are not wired up yet; the
   Insights screen reads real data and shows an empty state until they are.
-- No authentication. `createdBy` / `approvedBy` columns exist but stay null.
+- Meta credentials are still deployment-wide: `FACEBOOK_PAGE_ID`,
+  `INSTAGRAM_BUSINESS_ACCOUNT_ID` and `META_PAGE_ACCESS_TOKEN` come from the
+  environment, so every tenant publishes to the same pages. Integrations shows
+  whether they are configured but cannot change them; connecting Facebook and
+  Instagram per account is still to come.
+- The OpenAI API key is deployment-wide too. Only the model, temperature,
+  reasoning effort and word range are per-user.

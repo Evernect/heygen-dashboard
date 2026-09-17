@@ -4,14 +4,11 @@ const { prisma } = require("../lib/prisma")
 const { env } = require("../lib/env")
 const { logger } = require("../utils/logger")
 
-const SETTINGS_ID = "singleton"
-
 function defaults() {
   return {
-    id: SETTINGS_ID,
+    heygenAvatarGroupId: null,
     heygenAvatarLookId: env.HEYGEN_AVATAR_ID ?? null,
     heygenAvatarEngine: "avatar_iv",
-    heygenVoiceId: env.HEYGEN_VOICE_ID ?? null,
     heygenVoiceSpeed: 1.0,
     heygenVoiceLocale: "en-US",
     openaiModel: env.OPENAI_MODEL,
@@ -23,21 +20,34 @@ function defaults() {
   }
 }
 
-let cached = null
+// One entry per user. A tenant that never signs in costs nothing, and a write
+// only ever evicts its own author's entry.
+const cache = new Map()
 let warnedMissingTable = false
 
 function isMissingTable(error) {
   return error?.code === "P2021"
 }
 
-async function getSettings() {
+/**
+ * The settings a piece of work should run with.
+ *
+ * A user who has never opened the Settings page has no row yet and gets the
+ * environment defaults; the row is created the first time they save one.
+ *
+ * `userId` is only ever null for a caller with no identity at all, which the
+ * per-user routes now reject — background work reads the owner off the script
+ * it is advancing.
+ */
+async function getSettings(userId) {
+  if (!userId) return { userId: null, ...defaults() }
+
+  const cached = cache.get(userId)
   if (cached) return cached
 
   let existing = null
   try {
-    existing = await prisma.appSettings.findUnique({
-      where: { id: SETTINGS_ID },
-    })
+    existing = await prisma.appSettings.findUnique({ where: { userId } })
   } catch (error) {
     if (!isMissingTable(error)) throw error
 
@@ -47,28 +57,30 @@ async function getSettings() {
         "AppSettings table is missing — using environment defaults. Run `npx prisma db push` to enable the settings page."
       )
     }
-    return defaults()
+    return { userId, ...defaults() }
   }
 
-  cached = existing ?? defaults()
-  return cached
+  const settings = existing ?? { userId, ...defaults() }
+  cache.set(userId, settings)
+
+  return settings
 }
 
-async function updateSettings(patch) {
-  const base = defaults()
-
+async function updateSettings(userId, patch) {
   const saved = await prisma.appSettings.upsert({
-    where: { id: SETTINGS_ID },
-    create: { ...base, ...patch },
+    where: { userId },
+    create: { userId, ...defaults(), ...patch },
     update: patch,
   })
 
-  cached = saved
+  cache.set(userId, saved)
   return saved
 }
 
-function invalidate() {
-  cached = null
+/** Drops one user's cached settings, or everybody's when given no id. */
+function invalidate(userId) {
+  if (userId) cache.delete(userId)
+  else cache.clear()
 }
 
-module.exports = { getSettings, updateSettings, invalidate, defaults, SETTINGS_ID }
+module.exports = { getSettings, updateSettings, invalidate, defaults }

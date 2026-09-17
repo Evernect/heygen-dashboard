@@ -4,9 +4,14 @@ const { Router } = require("express")
 
 const controller = require("../controllers/topics.controller")
 const { validate } = require("../middleware/validate")
+const { requireUser } = require("../middleware/auth")
 const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
+
+// A content bank belongs to one tenant, so every route here needs to know
+// who is asking.
+router.use(requireUser)
 
 router.get(
   "/",

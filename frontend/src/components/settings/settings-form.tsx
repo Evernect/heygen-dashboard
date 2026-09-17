@@ -152,7 +152,7 @@ function changedFields(draft: AppSettings, saved: AppSettings) {
   const patch: Partial<AppSettings> = {}
 
   for (const key of Object.keys(draft) as (keyof AppSettings)[]) {
-    if (key === "id") continue
+    if (key === "userId") continue
     if (draft[key] !== saved[key]) {
       Object.assign(patch, { [key]: draft[key] })
     }

@@ -61,6 +61,15 @@ const includeRelations = {
   posts: true,
 }
 
+/**
+ * Scopes a lookup by id to the caller. `findFirst` rather than `findUnique`,
+ * so another tenant's script id is not found rather than returned for the
+ * caller to check afterwards.
+ */
+function owned(req) {
+  return { id: req.params.id, userId: req.user.id }
+}
+
 async function listScripts(req, res) {
   const { status, topicId, includeSiblings } = req.validatedQuery ?? {}
 
@@ -72,6 +81,7 @@ async function listScripts(req, res) {
 
   const scripts = await prisma.script.findMany({
     where: {
+      userId: req.user.id,
       ...(status ? { status } : {}),
       ...(topicId ? { topicId } : {}),
     },
@@ -86,7 +96,7 @@ async function listScripts(req, res) {
   const topicIds = [...new Set(scripts.map((script) => script.topicId))]
 
   const withSiblings = await prisma.script.findMany({
-    where: { topicId: { in: topicIds } },
+    where: { userId: req.user.id, topicId: { in: topicIds } },
     include: includeRelations,
     orderBy,
   })
@@ -95,8 +105,8 @@ async function listScripts(req, res) {
 }
 
 async function getScript(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
+  const script = await prisma.script.findFirst({
+    where: owned(req),
     include: includeRelations,
   })
   if (!script) throw notFound("Script not found")
@@ -105,9 +115,7 @@ async function getScript(req, res) {
 }
 
 async function updateScript(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   if (script.status !== "DRAFT") {
@@ -126,9 +134,7 @@ async function updateScript(req, res) {
 }
 
 async function renderScript(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   await render.startRender(script.id)
@@ -143,9 +149,7 @@ async function renderScript(req, res) {
 }
 
 async function getRenderStatus(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   if (script.status === "RENDERING") {
@@ -163,9 +167,7 @@ async function getRenderStatus(req, res) {
 async function approveScript(req, res) {
   const { scheduledAt, targetPlatforms } = req.body
 
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   if (script.status !== "PENDING_REVIEW") {
@@ -191,6 +193,7 @@ async function approveScript(req, res) {
       scheduledAt,
       targetPlatforms,
       approvedAt: new Date(),
+      approvedBy: req.user.id,
       rejectedAt: null,
       rejectionReason: null,
       lastError: null,
@@ -205,9 +208,7 @@ async function approveScript(req, res) {
 }
 
 async function rejectScript(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   if (["PROCESSING", "POSTED"].includes(script.status)) {
@@ -226,7 +227,7 @@ async function rejectScript(req, res) {
   })
 
   const alternatives = await prisma.script.count({
-    where: { topicId: script.topicId, status: "DRAFT" },
+    where: { userId: script.userId, topicId: script.topicId, status: "DRAFT" },
   })
 
   logger.info(
@@ -236,9 +237,7 @@ async function rejectScript(req, res) {
 }
 
 async function retryScript(req, res) {
-  const script = await prisma.script.findUnique({
-    where: { id: req.params.id },
-  })
+  const script = await prisma.script.findFirst({ where: owned(req) })
   if (!script) throw notFound("Script not found")
 
   if (script.status !== "FAILED") {

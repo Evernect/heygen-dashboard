@@ -6,6 +6,7 @@ import { HeroSection } from "@/components/landing/hero-section"
 import { LandingFooter } from "@/components/landing/landing-footer"
 import { LandingNav } from "@/components/landing/landing-nav"
 import { PipelineSection } from "@/components/landing/pipeline-section"
+import { getCurrentUser } from "@/lib/auth/user"
 
 export const metadata: Metadata = {
   title: "ReelFlow | Topic In, Published Reels Out",
@@ -13,10 +14,16 @@ export const metadata: Metadata = {
     "ReelFlow turns an issue and an angle into three AI-written scripts, renders the one you pick as an avatar video, and publishes it to your channels on a schedule you approve.",
 }
 
-export default function HomePage() {
+// The header reflects the session cookie, so the page is rendered per request
+// rather than prerendered at build time.
+export const dynamic = "force-dynamic"
+
+export default async function HomePage() {
+  const user = await getCurrentUser()
+
   return (
     <div className="flex min-h-full flex-col">
-      <LandingNav />
+      <LandingNav user={user} />
       <main className="flex-1">
         <HeroSection />
         <PipelineSection />
