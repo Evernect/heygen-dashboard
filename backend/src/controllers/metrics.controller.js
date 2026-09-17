@@ -2,8 +2,6 @@
 
 const { prisma } = require("../lib/prisma")
 
-// Latest snapshot per platform post, for one tenant. A post has no owner of
-// its own; it inherits one from the script it was published for.
 async function loadLatestMetrics(userId) {
   const posts = await prisma.platformPost.findMany({
     where: { status: "SUCCESS", script: { userId } },
@@ -44,7 +42,6 @@ async function getSummary(req, res) {
   const totalViews = rows.reduce((sum, row) => sum + row.views, 0)
   const totalEngagement = rows.reduce((sum, row) => sum + row.engagement, 0)
 
-  // --- Top topics ---
   const byTopic = new Map()
   for (const row of rows) {
     const topic = row.post.script?.topic
@@ -64,7 +61,6 @@ async function getSummary(req, res) {
     .sort((a, b) => b.engagement - a.engagement)
     .slice(0, 8)
 
-  // --- Per-platform totals ----
   const byPlatform = new Map()
   for (const row of rows) {
     const entry = byPlatform.get(row.post.platform) ?? {
@@ -79,7 +75,6 @@ async function getSummary(req, res) {
     byPlatform.set(row.post.platform, entry)
   }
 
-  // --- Engagement over time (by publish date) ---
   const byDate = new Map()
   for (const row of rows) {
     const publishedAt = row.post.publishedAt

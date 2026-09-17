@@ -44,10 +44,6 @@ export function deleteDailyNewsItem(id: string) {
   return api.delete<void>(`api/daily-news/${id}`)
 }
 
-/**
- * Starts a run and returns as soon as it is accepted — the run itself takes
- * minutes. Progress is followed through `getLatestRun`.
- */
 export function runNewsPipeline(force = false) {
   return api.post<{ status: string }>("api/daily-news/run", { force })
 }

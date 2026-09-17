@@ -42,13 +42,6 @@ const updateItemSchema = z
 
 const runSchema = z.object({ force: z.boolean().optional().default(false) })
 
-/**
- * Tenants with a run in flight in this process.
- *
- * A convenience that stops someone double-clicking Run now; the real guard
- * against a duplicate run is the unique (userId, localDate) key the pipeline
- * takes before it does any work.
- */
 const running = new Set()
 
 function owned(req) {
@@ -117,8 +110,6 @@ async function deleteDailyNewsItem(req, res) {
       )
     }
 
-    // Nothing hangs off the materialised topic, so it goes too rather than
-    // being left behind invisible to every screen.
     await prisma.topic.deleteMany({
       where: { id: existing.topicId, userId: req.user.id },
     })
@@ -128,13 +119,6 @@ async function deleteDailyNewsItem(req, res) {
   res.status(204).send()
 }
 
-/**
- * Runs the pipeline now rather than waiting for the morning.
- *
- * Answers immediately and works in the background: a full run takes minutes,
- * most of it deliberate spacing between feed requests. The dashboard follows it
- * through the run record.
- */
 async function runNow(req, res) {
   const userId = req.user.id
 
@@ -176,8 +160,6 @@ async function latestRun(req, res) {
     orderBy: { startedAt: "desc" },
   })
 
-  // Whether the tenant is configured at all is what the empty state needs to
-  // know, and it is cheaper to answer here than in a second request.
   const profile = await prisma.campaignProfile.findUnique({
     where: { userId: req.user.id },
     select: { candidateName: true, newsEnabled: true, newsRunHour: true, timezone: true },

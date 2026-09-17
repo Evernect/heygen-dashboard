@@ -1,9 +1,5 @@
 "use strict"
 
-/**
- * Above this many candidates an enum of ids gets unwieldy, so `id` falls back
- * to a plain string and the unmatched flag becomes the defence instead.
- */
 const MAX_ENUM_CANDIDATES = 40
 
 const IMPORTANCE_LEVELS = ["High", "Medium", "Low"]
@@ -19,12 +15,6 @@ function formatElectionDate(profile) {
   }).format(new Date(profile.electionDate))
 }
 
-/**
- * The candidate, in prose, from their own profile row.
- *
- * This used to be a paragraph hardcoded in the workflow, which is exactly why
- * it could only ever serve one campaign.
- */
 function buildPersonaBlock(profile) {
   if (!profile) return "A candidate for public office."
 
@@ -128,8 +118,6 @@ function buildPickSchema(candidateIds) {
       id: useEnum
         ? {
             type: "string",
-            // "" is a legal value on purpose: it is how the model declines a
-            // slot without having to break the schema.
             enum: ["", ...candidateIds],
             description:
               'The id of the candidate story you picked, or "" for an unused slot.',
@@ -169,12 +157,6 @@ function buildPickSchema(candidateIds) {
   }
 }
 
-/**
- * Strict structured output cannot say "at most 3": every property has to be
- * required. So the shape is a fixed set of slots, and an unused one comes back
- * with an empty id — which the service filters out. Same approach the script
- * generator uses for its variants.
- */
 function buildNewsSelectionSchema({ maxPicks = 3, candidateIds = [] } = {}) {
   const pick = buildPickSchema(candidateIds)
   const keys = pickKeys(maxPicks)

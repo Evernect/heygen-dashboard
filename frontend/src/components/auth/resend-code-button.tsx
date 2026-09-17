@@ -6,11 +6,6 @@ import { useCooldown } from "@/hooks/use-cooldown"
 
 const COOLDOWN_SECONDS = 60
 
-/**
- * The action state lives in the parent so its message can be merged into the
- * form's single alert. The cooldown starts on submit rather than on the
- * response, so a double click can't send two codes.
- */
 export function ResendCodeButton({
   formAction,
   pending,

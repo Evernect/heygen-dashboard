@@ -19,11 +19,6 @@ function getClient() {
 
 const UNSUPPORTED_PARAM = /Unsupported (parameter|value): '?(\w+)/i
 
-/**
- * The name of the parameter a model refused, or null when the failure was
- * something else. Models differ in which of `temperature` and
- * `reasoning.effort` they accept, and they say so only at request time.
- */
 function rejectedParameter(error) {
   const message = error?.message ?? ""
   if (error?.status !== 400) return null
@@ -36,7 +31,6 @@ function rejectedParameter(error) {
   return null
 }
 
-/** Retries once without whichever optional parameter the model turned down. */
 async function createWithFallback(openai, request) {
   try {
     return await openai.responses.create(request)
@@ -63,19 +57,6 @@ async function createWithFallback(openai, request) {
   }
 }
 
-/**
- * One structured-output call on the caller's configured model, returning the
- * parsed JSON.
- *
- * Every LLM call in the app wants the same five things around it: the user's
- * model and optional tuning parameters, the fallback retry for models that
- * refuse one of them, a strict JSON schema, and an upstream failure turned into
- * a 502 rather than an unhandled rejection. `label` is what the caller is
- * called in the error the user ends up reading.
- *
- * `settings` may be passed in when the caller already read them, which saves a
- * cache lookup; otherwise they are resolved here.
- */
 async function runStructured({
   userId,
   prompt,

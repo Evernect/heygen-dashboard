@@ -85,7 +85,6 @@ test("an id matching no cluster is kept, flagged, and left without sources", () 
   assert.equal(item.clusterId, null)
   assert.deepEqual(item.sourceUrls, [])
   assert.match(item.conflictFlag, /UNMATCHED: no story matched id 47/)
-  // The topic itself still survives — it is usually still worth making.
   assert.equal(item.topic, "Gas tax rises again")
 })
 

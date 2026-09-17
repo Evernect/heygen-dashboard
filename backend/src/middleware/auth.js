@@ -5,9 +5,6 @@ const { createClient } = require("@supabase/supabase-js")
 const { requireEnv } = require("../lib/env")
 const { unauthorized } = require("../utils/errors")
 
-// Verified identities are cached briefly: the dashboard polls render status
-// every couple of seconds, and each poll would otherwise be a round-trip to
-// Supabase's /auth/v1/user endpoint.
 const CACHE_TTL_MS = 60_000
 const cache = new Map()
 
@@ -49,11 +46,6 @@ async function verify(token) {
   return user
 }
 
-/**
- * Attaches `req.user` when the request carries a valid Supabase access token,
- * and leaves it undefined otherwise. Used by routes that work without a
- * session but behave differently with one.
- */
 async function attachUser(req, res, next) {
   try {
     const token = bearerToken(req)
@@ -64,7 +56,6 @@ async function attachUser(req, res, next) {
   }
 }
 
-/** Rejects the request with 401 unless it carries a valid access token. */
 async function requireUser(req, res, next) {
   try {
     const token = bearerToken(req)

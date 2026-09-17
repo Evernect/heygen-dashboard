@@ -12,18 +12,6 @@ const IN_FLIGHT_SCRIPT_STATUSES = [
   "PROCESSING",
 ]
 
-/**
- * Runs the LLM for one topic, replacing its unpicked options with fresh ones.
- *
- * This lives in a service rather than in the topics controller because the
- * content bank is no longer the only way in: a daily news item generates from
- * the topic it materialises, and both need the same state machine — the
- * GENERATING transition, the in-flight guard, the DRAFT sweep and the rollback
- * on failure. Two copies of that would drift the first time one is touched.
- *
- * `userId` is folded into the lookup rather than checked afterwards, so another
- * tenant's topic id is simply not found.
- */
 async function generateForTopic({ topicId, userId }) {
   const topic = await prisma.topic.findFirst({ where: { id: topicId, userId } })
   if (!topic) throw notFound("Topic not found")

@@ -28,11 +28,6 @@ async function markRenderFailed(scriptId, error) {
   logger.error(`Script ${scriptId} render failed: ${message}`)
 }
 
-/**
- * `userId` is never passed in: it is read off the script itself, so a render
- * started from a request and one advanced by the cron tick both run on the
- * owner's HeyGen key rather than on whoever happened to trigger it.
- */
 async function startRender(scriptId) {
   const script = await prisma.script.findUnique({ where: { id: scriptId } })
   if (!script) return null

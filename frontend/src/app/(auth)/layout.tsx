@@ -6,9 +6,6 @@ import { ModeToggle } from "@/components/theme/mode-toggle"
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
-    // Fixed to one viewport: the form column scrolls on its own when a form
-    // is taller than the screen, so the page itself never does and the
-    // showcase panel never moves.
     <div className="grid h-svh lg:grid-cols-2">
       <AuthShowcase />
 

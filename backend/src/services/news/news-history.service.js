@@ -6,12 +6,6 @@ const { HISTORY_DAYS, RETENTION_DAYS } = require("./scoring-constants")
 
 const DAY_MS = 24 * 3600 * 1000
 
-/**
- * The token sets of everything scored for this user in the last week.
- *
- * Tokens are stored rather than recomputed from headlines so the repeat check
- * is both cheap and identical to the comparison that produced them.
- */
 async function loadRecentHistory(userId, days = HISTORY_DAYS) {
   const since = new Date(Date.now() - days * DAY_MS)
 
@@ -23,7 +17,6 @@ async function loadRecentHistory(userId, days = HISTORY_DAYS) {
   return rows
 }
 
-/** Logs every scored cluster, whether or not it was picked. */
 async function appendHistory({ userId, runId, clusters }) {
   if (!clusters?.length) return 0
 
@@ -47,23 +40,12 @@ async function appendHistory({ userId, runId, clusters }) {
   return count
 }
 
-/**
- * Clears a run's history rows.
- *
- * Used when a run is forced again on the same day: without it the second pass
- * would log the same clusters twice and every one of them would look like a
- * repeat for the following week.
- */
 async function clearRunHistory(runId) {
   if (!runId) return 0
   const { count } = await prisma.newsClusterHistory.deleteMany({ where: { runId } })
   return count
 }
 
-/**
- * Drops history past the retention window. A sheet could grow forever without
- * anyone noticing; this table would slow the weekly repeat query down.
- */
 async function pruneHistory(userId, days = RETENTION_DAYS) {
   const before = new Date(Date.now() - days * DAY_MS)
 

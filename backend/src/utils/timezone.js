@@ -1,13 +1,5 @@
 "use strict"
 
-/**
- * Calendar date and clock time in a named zone.
- *
- * `toISOString().slice(0, 10)` is UTC, which is a different calendar day from
- * roughly 4pm Pacific onwards. A 7am Pacific run stamped that way would file
- * itself under tomorrow's date for part of the year and defeat the
- * one-run-per-day key, so every local date in the pipeline comes from here.
- */
 function localDateParts(date = new Date(), timeZone = "UTC") {
   const zone = isValidTimeZone(timeZone) ? timeZone : "UTC"
 
@@ -34,10 +26,8 @@ function localDateParts(date = new Date(), timeZone = "UTC") {
   )
 
   return {
-    // en-CA renders as YYYY-MM-DD, which is what the run key wants.
     localDate,
     localTime,
-    // 24 is what en-US gives for midnight; the pipeline wants 0.
     hour: hour === 24 ? 0 : hour,
     timeZone: zone,
   }
@@ -53,7 +43,6 @@ function isValidTimeZone(timeZone) {
   }
 }
 
-/** "LN-20260917-1" — the human-facing id for one of a day's picks. */
 function issueCode(localDate, index) {
   return `LN-${localDate.replace(/-/g, "")}-${index + 1}`
 }

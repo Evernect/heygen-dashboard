@@ -4,9 +4,7 @@ export interface NewsKeyword {
   type: string
   topicLabel: string
   query: string
-  /** An article must mention one of these… */
   terms: string[]
-  /** …and one of these, or it is dropped as off-topic. */
   places: string[]
   scope: string
   priority: number
@@ -36,7 +34,6 @@ export interface CampaignProfile {
   office: string | null
   district: string | null
   districtDescription: string | null
-  /** Place names that mark a story as local, feeding the district score. */
   districtTerms: string[]
   state: string | null
   electionDate: string | null

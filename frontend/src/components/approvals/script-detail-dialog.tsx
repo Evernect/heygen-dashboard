@@ -59,7 +59,6 @@ export function ScriptDetailDialog({
   script: Script | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Called after any change; passes the fresh row when the caller has one. */
   onChanged: (updated?: Script) => void
   onRequestReject: (script: Script) => void
 }) {
@@ -82,8 +81,6 @@ export function ScriptDetailDialog({
 
   if (!script || !draft) return null
 
-  // Text is only editable while the script is still an unrendered option —
-  // once HeyGen has spoken it, editing would desync the words from the video.
   const isDraft = script.status === "DRAFT"
   const isRendering = script.status === "RENDERING"
   const isAwaitingReview = script.status === "PENDING_REVIEW"

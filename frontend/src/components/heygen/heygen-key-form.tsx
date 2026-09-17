@@ -87,22 +87,14 @@ export function HeygenKeyForm({
             autoFocus={autoFocus}
             spellCheck={false}
             disabled={isVerifying}
-            // Browsers ignore autocomplete="off" on a password field and
-            // offer a saved login anyway, which would drop somebody else's
-            // credential into the box. "new-password" is the one value they
-            // honour; the data attributes say the same to 1Password/LastPass.
             autoComplete="new-password"
             data-1p-ignore
             data-lpignore="true"
-            // Pasting a secret into a visible field is how it ends up in a
-            // screen recording, so it is masked until asked for.
             type={visible ? "text" : "password"}
             placeholder="Paste your HeyGen API key"
             value={apiKey}
             onChange={(event) => {
               setApiKey(event.target.value)
-              // The old failure describes the old key; keep it while the
-              // field is untouched, drop it the moment it is not.
               if (error) setError(null)
             }}
           />

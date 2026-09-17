@@ -63,8 +63,6 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword(parsed.data)
 
   if (error) {
-    // Deliberately generic: a precise message would let anyone probe which
-    // addresses have accounts.
     return { error: "Invalid email or password.", values }
   }
 
@@ -95,15 +93,12 @@ export async function signUp(
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      // Google puts the display name in the same place, so the header menu
-      // reads one field regardless of how the account was created.
       data: { full_name: parsed.data.fullName },
     },
   })
 
   if (error) return { error: error.message, values }
 
-  // Only reachable when "Confirm email" is turned off in the dashboard.
   if (data.session) {
     revalidatePath("/", "layout")
     redirect(DEFAULT_SIGNED_IN_ROUTE)
@@ -187,7 +182,6 @@ export async function signInWithGoogle(
     return { error: "Could not reach Google. Try again in a moment." }
   }
 
-  // Running this server-side is what persists the PKCE code verifier cookie.
   redirect(data.url)
 }
 

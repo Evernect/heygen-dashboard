@@ -29,9 +29,6 @@ app.use(
 )
 app.use(express.json({ limit: "1mb" }))
 
-// Identity is read once per request. Routes that require it use `requireUser`;
-// the rest simply run with the caller's HeyGen credentials when there is a
-// session, which is what makes the render endpoints use the right key.
 app.use("/api", attachUser)
 
 app.get("/health", (req, res) => {

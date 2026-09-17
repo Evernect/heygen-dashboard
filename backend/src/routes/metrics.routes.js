@@ -8,7 +8,6 @@ const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
 
-// Aggregates and insights only ever cover the caller's own published work.
 router.use(requireUser)
 
 router.get("/metrics/summary", asyncHandler(controller.getSummary))

@@ -8,7 +8,6 @@ export const PLATFORMS = [
 
 export type Platform = (typeof PLATFORMS)[number]
 
-/** Matches the PlatformPostStatus enum the API returns, which is uppercase. */
 export type PlatformPostStatus = "PENDING" | "SUCCESS" | "FAILED"
 
 export interface PlatformPost {

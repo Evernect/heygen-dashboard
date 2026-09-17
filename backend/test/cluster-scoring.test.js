@@ -140,7 +140,6 @@ test("a story only one outlet ran is penalised", () => {
     now: NOW,
   }).clusters[0]
 
-  // One more outlet is worth its breadth point and removes the solo penalty.
   assert.equal(
     pair.score - solo.score,
     constants.WEIGHTS.breadth - constants.WEIGHTS.solo
@@ -169,7 +168,6 @@ test("repeats come back when there are too few fresh stories to fill the pool", 
     now: NOW,
   })
 
-  // The only story of the day is a repeat; returning nothing would be worse.
   assert.equal(clusters.length, 1)
   assert.equal(clusters[0].isRepeat, true)
 })

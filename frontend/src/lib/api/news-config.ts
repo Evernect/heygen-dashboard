@@ -11,8 +11,6 @@ import type {
   UpdatePositionInput,
 } from "@/lib/types/news-config"
 
-// --- Keywords ---
-
 export function listKeywords() {
   return api.get<{ keywords: NewsKeyword[] }>("api/news/keywords")
 }
@@ -21,7 +19,6 @@ export function createKeyword(input: CreateKeywordInput) {
   return api.post<NewsKeyword>("api/news/keywords", input)
 }
 
-/** Upserts on the keyword code, so re-importing an edited sheet updates. */
 export function bulkUpsertKeywords(keywords: CreateKeywordInput[]) {
   return api.post<{ keywords: NewsKeyword[]; count: number }>(
     "api/news/keywords/bulk",
@@ -37,8 +34,6 @@ export function deleteKeyword(id: string) {
   return api.delete<void>(`api/news/keywords/${id}`)
 }
 
-// --- Campaign profile ---
-
 export function getCampaignProfile() {
   return api.get<{ profile: CampaignProfile | null; timezones: string[] }>(
     "api/news/campaign-profile"
@@ -52,8 +47,6 @@ export function saveCampaignProfile(input: CampaignProfileInput) {
   )
 }
 
-// --- Positions ---
-
 export function listPositions() {
   return api.get<{ positions: CandidatePosition[] }>("api/news/positions")
 }
@@ -62,7 +55,6 @@ export function createPosition(input: CreatePositionInput) {
   return api.post<CandidatePosition>("api/news/positions", input)
 }
 
-/** Matches an existing position on its issue, so a corrected sheet updates. */
 export function bulkUpsertPositions(positions: CreatePositionInput[]) {
   return api.post<{ positions: CandidatePosition[]; count: number }>(
     "api/news/positions/bulk",
@@ -77,8 +69,6 @@ export function updatePosition(id: string, input: UpdatePositionInput) {
 export function deletePosition(id: string) {
   return api.delete<void>(`api/news/positions/${id}`)
 }
-
-// --- Style playbook ---
 
 export function listStylePlaybook() {
   return api.get<{ entries: StylePlaybookEntry[] }>("api/news/style-playbook")

@@ -14,8 +14,6 @@ export const metadata: Metadata = {
     "ReelFlow turns an issue and an angle into three AI-written scripts, renders the one you pick as an avatar video, and publishes it to your channels on a schedule you approve.",
 }
 
-// The header reflects the session cookie, so the page is rendered per request
-// rather than prerendered at build time.
 export const dynamic = "force-dynamic"
 
 export default async function HomePage() {

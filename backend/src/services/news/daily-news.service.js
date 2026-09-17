@@ -6,15 +6,6 @@ const { badRequest, notFound } = require("../../utils/errors")
 const { issueCode } = require("../../utils/timezone")
 const { logger } = require("../../utils/logger")
 
-/**
- * Joins each written angle back to the cluster it came from.
- *
- * Pure. An id that resolves to no cluster does not drop the pick and does not
- * fail the run: the row is kept, marked `unmatched`, and shown with a warning.
- * A hallucinated id usually means the model wrote a real topic against a story
- * it merged from two candidates — the topic is often still good, it just cannot
- * be traced back to its sources.
- */
 function buildItemsFromPicks({ angles, clusters, localDate, localTime }) {
   const byId = new Map(clusters.map((cluster) => [cluster.clusterId, cluster]))
 
@@ -51,7 +42,6 @@ function buildItemsFromPicks({ angles, clusters, localDate, localTime }) {
   })
 }
 
-/** Writes a run's picks. Re-running a day updates that day's rows in place. */
 async function saveItems({ userId, runId, rows }) {
   if (!rows.length) return []
 
@@ -82,15 +72,6 @@ async function listItems({ userId, status, page = 1, pageSize = 20 }) {
   return { items, total, page, pageSize }
 }
 
-/**
- * Materialises the Topic this item stands for, then generates scripts from it
- * exactly as the content bank does.
- *
- * The Topic is tagged DAILY_NEWS so it never shows up in the content bank, and
- * it is reused on a second press rather than piling up duplicates. Going
- * through a real Topic is what lets every downstream stage — render, approve,
- * publish, metrics — stay completely unaware that daily news exists.
- */
 async function generateFromItem({ itemId, userId }) {
   const item = await prisma.dailyNewsItem.findFirst({
     where: { id: itemId, userId },
@@ -106,7 +87,6 @@ async function generateFromItem({ itemId, userId }) {
   const topic = item.topicId
     ? await prisma.topic.update({
         where: { id: item.topicId },
-        // The item may have been edited since it was last generated from.
         data: { issue: item.topic, angle: item.angle },
       })
     : await prisma.topic.create({

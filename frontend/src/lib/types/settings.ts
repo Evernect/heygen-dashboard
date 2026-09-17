@@ -13,7 +13,6 @@ export const REASONING_EFFORTS = [
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
 
 export interface AppSettings {
-  /** The Supabase user these settings belong to. Settings are per-tenant. */
   userId: string
 
   heygenAvatarGroupId: string | null
@@ -41,7 +40,6 @@ export interface SettingsResponse {
   }
 }
 
-/** A character. Holds one or more looks — outfits, poses, framings. */
 export interface HeygenAvatarGroup {
   id: string
   name: string
@@ -59,7 +57,6 @@ export interface HeygenAvatarLook {
   avatarType: string | null
   gender: string | null
   previewImageUrl: string | null
-  /** Null for photo avatars, which only ever have a still. */
   previewVideoUrl: string | null
   supportedEngines: HeygenEngine[]
   preferredOrientation: string | null

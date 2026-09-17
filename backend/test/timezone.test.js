@@ -29,15 +29,11 @@ test("7am Pacific in winter is 15:00 UTC", () => {
 })
 
 test("the winter UTC hour is not 7am Pacific in summer", () => {
-  // This is the whole reason the backend decides rather than the cron schedule:
-  // one fixed UTC time is the wrong local hour for half the year.
   const { hour } = localDateParts(new Date("2026-09-17T15:00:00Z"), PT)
   assert.equal(hour, 8)
 })
 
 test("late evening Pacific is still the same local day", () => {
-  // 5pm Pacific on the 17th is already the 18th in UTC. Stamping the run with
-  // the UTC date here would file it under tomorrow and break the daily key.
   const utc = new Date("2026-09-18T00:30:00Z")
 
   assert.equal(localDateParts(utc, PT).localDate, "2026-09-17")

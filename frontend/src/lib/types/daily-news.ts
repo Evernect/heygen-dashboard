@@ -20,12 +20,9 @@ export interface DailyNewsItem {
   importance: Importance
   importanceScore: number
   sourceSummary: string
-  /** The summary came from headlines alone — no article text was readable. */
   headlinesOnly: boolean
-  /** Empty when the angle sits consistently with the stated positions. */
   conflictFlag: string | null
   clusterId: string | null
-  /** The model named a story that could not be resolved back to its sources. */
   unmatched: boolean
   headline: string | null
   outlet: string | null

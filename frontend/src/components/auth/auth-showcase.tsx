@@ -4,14 +4,6 @@ import { SparklesIcon } from "lucide-react"
 import { ReelflowWordmark } from "@/components/landing/reelflow-wordmark"
 import { PIPELINE_STAGES } from "@/lib/constants/landing"
 
-/**
- * Left-hand marketing panel shared by every auth screen. Hidden below `lg`,
- * where the form takes the full width.
- *
- * The three rows are wordmark / content / footer. Only the middle row may
- * shrink, and the stage list drops out entirely on short viewports rather
- * than pushing the footer over it.
- */
 export function AuthShowcase() {
   return (
     <div className="relative isolate hidden h-full min-h-0 flex-col justify-between gap-8 overflow-hidden border-r border-border bg-muted/30 p-8 lg:flex xl:p-10">

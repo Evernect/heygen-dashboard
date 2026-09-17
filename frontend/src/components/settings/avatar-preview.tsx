@@ -8,13 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { HeygenAvatarLook } from "@/lib/types/settings"
 
-/**
- * The still that HeyGen ships with each look.
- *
- * A plain <img> rather than next/image on purpose: these URLs are signed and
- * expire, so routing them through the image optimiser would cache a copy that
- * outlives the signature and start serving broken images.
- */
 export function AvatarPreview({
   look,
   isLoading,
@@ -26,7 +19,6 @@ export function AvatarPreview({
 }) {
   const [failed, setFailed] = React.useState(false)
 
-  // A new look means a new URL; forget the previous one's failure.
   const [lastId, setLastId] = React.useState(look?.id ?? null)
   if ((look?.id ?? null) !== lastId) {
     setLastId(look?.id ?? null)
@@ -55,7 +47,6 @@ export function AvatarPreview({
     <figure className="flex flex-col items-center gap-2">
       <div className={frame}>
         {look.previewImageUrl && !failed ? (
-          // eslint-disable-next-line @next/next/no-img-element -- signed, expiring URL; see note above
           <img
             src={look.previewImageUrl}
             alt={`Preview of ${look.name}`}

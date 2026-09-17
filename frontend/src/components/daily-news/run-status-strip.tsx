@@ -20,16 +20,8 @@ import { formatRelative } from "@/lib/format"
 import type { LatestRunResponse, NewsRun } from "@/lib/types/daily-news"
 import { cn } from "@/lib/utils"
 
-/** Matches the render-status poll on the approvals screen. */
 const POLL_INTERVAL_MS = 5000
 
-/**
- * What the run actually did, in one line.
- *
- * The counters matter most when nothing came out: they are what separates "the
- * job never ran" from "nothing in today's news qualified", and the latter
- * usually means the keyword terms or places are too narrow.
- */
 function describeRun(run: NewsRun): string {
   const {
     itemsCreated,
@@ -99,7 +91,6 @@ export function RunStatusStrip({ onFinished }: { onFinished: () => void }) {
   const profile = data?.profile ?? null
   const isRunning = Boolean(data?.inProgress) || run?.status === "RUNNING"
 
-  // Poll only while something is in flight, then refresh the list once.
   const wasRunning = React.useRef(false)
   React.useEffect(() => {
     if (!isRunning) {

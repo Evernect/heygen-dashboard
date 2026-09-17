@@ -8,15 +8,6 @@ const {
   angleKeys,
 } = require("../prompts/news-angles.prompt")
 
-/**
- * Writes the angle for each selected topic, in the candidate's voice.
- *
- * Never throws. A failure here returns the picks with an empty angle and a
- * warning instead: the selection depends on a news window that has already
- * closed and cannot be reproduced later, while an angle is a sentence someone
- * can type in the edit dialog. Losing the morning's research because the second
- * call timed out would be the worst trade in the pipeline.
- */
 async function writeAngles({ userId, picks, context, settings }) {
   if (!picks.length) return { angles: [], warning: null }
 

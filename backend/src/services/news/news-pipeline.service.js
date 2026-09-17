@@ -17,7 +17,6 @@ const { localDateParts } = require("../../utils/timezone")
 const { logger } = require("../../utils/logger")
 const { env } = require("../../lib/env")
 
-/** Postgres unique-constraint violation. */
 const UNIQUE_VIOLATION = "P2002"
 
 function emptyCounters() {
@@ -33,17 +32,6 @@ function emptyCounters() {
   }
 }
 
-/**
- * Claims the day for this tenant.
- *
- * The unique (userId, localDate) key is the real guard against a duplicate run,
- * not any in-process flag: it works across restarts and across two backend
- * instances, and it is taken before a single feed is fetched. A second caller
- * collides here and is told the day is already claimed.
- *
- * `force` re-opens an existing run instead, and clears what the previous
- * attempt logged so the week's repeat check is not poisoned by its own output.
- */
 async function claimRun({ userId, localDate, trigger, force }) {
   try {
     const run = await prisma.newsRun.create({
@@ -92,14 +80,6 @@ async function finishRun(runId, { status, counters, warnings, error }) {
   })
 }
 
-/**
- * The whole pipeline for one tenant: feeds in, up to three daily news items
- * out.
- *
- * Every stage that can degrade does. A feed that fails costs that feed, a
- * missing Jina key costs article detail, and a day where nothing qualifies is a
- * successful run that produced nothing — none of them abort the rest.
- */
 async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false }) {
   const profile = await prisma.campaignProfile.findUnique({ where: { userId } })
 
@@ -124,7 +104,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
   const warnings = []
 
   try {
-    // 1-2. Keywords into feed URLs
     const keywords = await prisma.newsKeyword.findMany({
       where: { userId, active: true },
       orderBy: { keywordId: "asc" },
@@ -142,7 +121,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
       return { status: "SUCCEEDED", run, items: [] }
     }
 
-    // 3-4. Fetch and flatten, enforcing relevance in code
     const responses = await fetchFeeds(requests)
     const articles = []
 
@@ -179,8 +157,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
     }
 
     if (!articles.length) {
-      // A legitimate outcome, and usually a sign the terms or places filters
-      // are too narrow. The counters are what say which.
       await finishRun(run.id, {
         status: counters.feedsFetched ? "SUCCEEDED" : "FAILED",
         counters,
@@ -192,7 +168,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
       return { status: "SUCCEEDED", run, items: [] }
     }
 
-    // 5. Cluster and score against the last week
     const recent = await history.loadRecentHistory(userId)
 
     const { clusters, stats } = clusterAndScore({
@@ -212,7 +187,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
         `${stats.repeats} repeats, ${stats.shortlisted} shortlisted`
     )
 
-    // 6. Log every scored cluster, picked or not
     await history.appendHistory({ userId, runId: run.id, clusters })
 
     if (!clusters.length) {
@@ -220,7 +194,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
       return { status: "SUCCEEDED", run, items: [] }
     }
 
-    // 7. Article text, best-effort
     const articleTexts = await fetchArticleTexts(clusters)
     counters.articleTextsFetched = articleTexts.filter(Boolean).length
 
@@ -234,7 +207,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
       )
     }
 
-    // 8-10. Context, selection, angles
     const settings = await getSettings(userId)
     const context = await buildNewsContext({ userId, clusters, articleTexts })
 
@@ -260,7 +232,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
     })
     if (warning) warnings.push(warning)
 
-    // 11. Join back to the clusters and persist
     const rows = buildItemsFromPicks({ angles, clusters, localDate, localTime })
     const items = await saveItems({ userId, runId: run.id, rows })
 
@@ -297,22 +268,6 @@ async function runNewsPipelineForUser({ userId, trigger = "CRON", force = false 
   }
 }
 
-/**
- * Every tenant whose run is due and has not happened yet today.
- *
- * pg_cron fires this hourly and the decision is made here, against each
- * tenant's own zone. That is what lets the run hour be a setting rather than
- * something baked into a UTC cron expression: `pg_cron` schedules in UTC, so an
- * hour chosen in the dashboard could never line up with a fixed schedule, and
- * the offset moves under daylight saving anyway.
- *
- * "Has not happened yet today" rather than "it is exactly that hour" so a tick
- * the backend missed — asleep, deploying, cold-starting — is picked up by the
- * next one instead of skipping the day. A run that started and *failed* is not
- * retried here: it already spent whatever it spent, and repeating that hourly
- * would quietly multiply the cost of a persistent failure. Run now is the
- * retry.
- */
 async function findTenantsDueNow(now = new Date()) {
   const profiles = await prisma.campaignProfile.findMany({
     where: { newsEnabled: true },
@@ -344,13 +299,6 @@ async function findTenantsDueNow(now = new Date()) {
     .map((entry) => entry.profile)
 }
 
-/**
- * The daily sweep.
- *
- * Tenants run one at a time — the feeds and the LLM are both rate-limit
- * sensitive and there are few tenants — and each is wrapped on its own, so one
- * tenant's bad morning never costs another tenant theirs.
- */
 async function runDueNewsPipelines(now = new Date()) {
   const due = await findTenantsDueNow(now)
 

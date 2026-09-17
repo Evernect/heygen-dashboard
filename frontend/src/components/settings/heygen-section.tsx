@@ -46,8 +46,6 @@ export function HeygenSection({
 
   const groupId = draft.heygenAvatarGroupId
 
-  // Looks are fetched per group rather than all at once: the group filter is
-  // what keeps this to a single page, and HeyGen caps a page at 50.
   const looks = useAsyncData(
     () =>
       groupId
@@ -74,8 +72,6 @@ export function HeygenSection({
   const catalogError = groups.error ?? looks.error
 
   function handleGroupChange(nextGroupId: string | null) {
-    // The old look belongs to the old character, so it cannot survive the
-    // switch. Clearing it is what stops a mismatched pair being saved.
     patch({
       heygenAvatarGroupId: nextGroupId || null,
       heygenAvatarLookId: null,
@@ -174,7 +170,6 @@ export function HeygenSection({
                   <SelectItem
                     key={look.id}
                     value={look.id}
-                    // A look that is still training cannot be rendered with.
                     disabled={
                       look.status !== null && look.status !== "completed"
                     }

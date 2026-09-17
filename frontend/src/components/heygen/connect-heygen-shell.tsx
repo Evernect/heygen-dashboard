@@ -19,9 +19,6 @@ export function ConnectHeygenShell({
 
   const goToDashboard = React.useCallback(() => {
     setIsLeaving(true)
-    // `refresh` first: the dashboard layout re-checks the connection on the
-    // server, and without it that check would run against a stale cache and
-    // bounce the user straight back here.
     router.refresh()
     router.push(DEFAULT_SIGNED_IN_ROUTE)
   }, [router])

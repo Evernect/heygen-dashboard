@@ -1,16 +1,5 @@
 "use strict"
 
-/**
- * Stages 1-6 of the daily news pipeline for one user, printed rather than
- * saved. No LLM call, no writes.
- *
- * This is how keyword configuration gets tuned: the counts show how much each
- * feed brought back and how much its terms and places threw away, which is
- * almost always the reason a morning run comes back empty.
- *
- *   npm run news:preview -- <user-id>
- */
-
 const { prisma } = require("../src/lib/prisma")
 const { buildFeedRequests } = require("../src/services/news/feed-url.builder")
 const { fetchFeeds } = require("../src/services/news/rss-fetch.service")

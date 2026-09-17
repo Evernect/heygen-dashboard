@@ -2,7 +2,6 @@
 
 const defaults = require("./scoring-constants")
 
-/** Headline → the set of tokens that say what it is about. */
 function tokenize(text, constants = defaults) {
   return String(text ?? "")
     .toLowerCase()
@@ -15,7 +14,6 @@ function tokenize(text, constants = defaults) {
     )
 }
 
-/** Overlap of two token sets, 0 to 1. */
 function jaccard(a, b) {
   if (!a.size || !b.size) return 0
 
@@ -26,7 +24,6 @@ function jaccard(a, b) {
   return union ? intersection / union : 0
 }
 
-/** Drops articles that are the same link twice over. */
 function dedupeByLink(articles) {
   const seen = new Set()
   const unique = []
@@ -41,14 +38,6 @@ function dedupeByLink(articles) {
   return unique
 }
 
-/**
- * Groups articles that are covering the same story.
- *
- * Greedy single pass: each article joins the existing cluster it overlaps most,
- * if that overlap clears the threshold, and the cluster's token set grows to
- * the union. Order-dependent by nature, which is why the caller hands articles
- * in a stable order.
- */
 function clusterByHeadline(articles, constants = defaults) {
   const clusters = []
 
@@ -93,12 +82,6 @@ function mentionsAny(haystack, needles) {
   })
 }
 
-/**
- * Publisher URLs first, Google News redirect wrappers last.
- *
- * The wrapper resolves in a browser but is useless to the article fetcher, so
- * whatever real link a cluster has should be the one that gets read.
- */
 function orderUrls(articles) {
   return articles
     .map((article) => article.link)
@@ -111,15 +94,6 @@ function orderUrls(articles) {
     .slice(0, 5)
 }
 
-/**
- * Scores one cluster.
- *
- * `signals` carries the campaign's own district terms and candidate name. The
- * district and named bonuses were implicit in the old sheet — they came from
- * how a keyword happened to be configured — so they are passed in explicitly
- * here, both to keep this module free of any database and because a story can
- * name the candidate without having been found by a keyword that says so.
- */
 function scoreCluster({ cluster, history, signals, now, constants = defaults }) {
   const articles = [...cluster.articles].sort(
     (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)
@@ -191,11 +165,6 @@ function scoreCluster({ cluster, history, signals, now, constants = defaults }) 
   }
 }
 
-/**
- * Caps how many clusters can carry any one topic label, so a noisy day on one
- * issue cannot fill the whole pool. A cluster carrying several labels survives
- * while any one of them still has room.
- */
 function capPerLabel(clusters, constants = defaults) {
   const used = {}
 
@@ -210,17 +179,6 @@ function capPerLabel(clusters, constants = defaults) {
   })
 }
 
-/**
- * Clusters, scores and shortlists a day's articles.
- *
- * Pure: no database, no network, no clock of its own. `now` is injected so the
- * recency buckets are deterministic under test, and `history` arrives as plain
- * arrays of tokens from previous runs rather than being queried here.
- *
- * `clusterId` is a run-local index. It identifies a cluster only within the run
- * that produced it — a durable reference is the (runId, clusterId) pair stored
- * on the history row, plus its tokens.
- */
 function clusterAndScore({
   articles,
   history = [],
@@ -245,8 +203,6 @@ function clusterAndScore({
     })
   )
 
-  // Fresh stories are preferred, but a quiet week should still produce
-  // something rather than nothing.
   const fresh = scored.filter((cluster) => !cluster.isRepeat)
   const working = fresh.length >= constants.MIN_POOL ? fresh : scored
 

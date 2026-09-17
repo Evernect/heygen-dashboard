@@ -5,10 +5,6 @@ const { z } = require("zod")
 const { prisma } = require("../lib/prisma")
 const { notFound } = require("../utils/errors")
 
-/**
- * Accepts either a real array or the pipe-joined string the original Google
- * Sheet used, so a column pasted straight out of that sheet still imports.
- */
 const pipeList = z
   .union([z.array(z.string()), z.string()])
   .transform((value) =>
@@ -17,7 +13,6 @@ const pipeList = z
       .filter(Boolean)
   )
 
-/** A yes/no that also understands the sheet's "Y"/"N". */
 const sheetBoolean = z
   .union([z.boolean(), z.string()])
   .transform((value) =>
@@ -26,16 +21,6 @@ const sheetBoolean = z
       : ["y", "yes", "true", "1"].includes(value.trim().toLowerCase())
   )
 
-// --- Keywords --------------------------------------------------------------
-
-/**
- * The field shapes, without defaults.
- *
- * Defaults are added only to the create schema. `.partial()` does not suppress
- * a `.default()`, so a shared schema would turn `PATCH { priority: 5 }` into a
- * write that also blanked `terms` and `places` and reset `type`, `scope` and
- * `active` — a partial update that quietly destroys the rest of the row.
- */
 const keywordShape = {
   keywordId: z.string().trim().min(1).max(40),
   type: z.string().trim().min(1).max(40),
@@ -92,10 +77,6 @@ async function createKeyword(req, res) {
   res.status(201).json(keyword)
 }
 
-/**
- * Upserts on (userId, keywordId) rather than inserting, so re-importing a sheet
- * that has been edited updates the existing rows instead of colliding.
- */
 async function bulkUpsertKeywords(req, res) {
   const userId = req.user.id
 
@@ -134,8 +115,6 @@ async function deleteKeyword(req, res) {
   res.status(204).send()
 }
 
-// --- Campaign profile ------------------------------------------------------
-
 const campaignProfileSchema = z
   .object({
     candidateName: z.string().trim().min(1).max(160),
@@ -166,9 +145,6 @@ async function readCampaignProfile(req, res) {
 }
 
 async function writeCampaignProfile(req, res) {
-  // A profile is required before the pipeline can run at all, so the first
-  // save has to be able to create the row; candidateName is the only field
-  // without a sensible default.
   const profile = await prisma.campaignProfile.upsert({
     where: { userId: req.user.id },
     create: {
@@ -182,9 +158,6 @@ async function writeCampaignProfile(req, res) {
   res.json({ profile })
 }
 
-// --- Positions -------------------------------------------------------------
-
-// Same split as the keyword schemas, and for the same reason.
 const positionShape = {
   issue: z.string().trim().min(1).max(160),
   stance: z.string().trim().min(1).max(2000),
@@ -232,14 +205,6 @@ async function createPosition(req, res) {
   )
 }
 
-/**
- * Imports positions, matching an existing row on its issue.
- *
- * There is no unique key on (userId, issue) — nothing stops someone recording
- * two positions on one issue by hand — so the match is done per row rather than
- * with an upsert. Re-importing a corrected sheet then updates the stance in
- * place instead of leaving two contradictory rows for the angle writer to read.
- */
 async function bulkUpsertPositions(req, res) {
   const userId = req.user.id
   const rows = req.body.positions
@@ -295,8 +260,6 @@ async function deletePosition(req, res) {
   res.status(204).send()
 }
 
-// --- Style playbook --------------------------------------------------------
-
 const createPlaybookSchema = z.object({
   label: z.string().trim().max(120).nullable().optional(),
   guidance: z.string().trim().min(1).max(8000),
@@ -311,7 +274,6 @@ async function listPlaybook(req, res) {
   res.json({ entries })
 }
 
-/** A new entry supersedes the last, which is what "latest guidance" meant. */
 async function createPlaybookEntry(req, res) {
   const userId = req.user.id
 

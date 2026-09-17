@@ -32,8 +32,6 @@ export function RenderProgress({
         if (cancelled) return
         if (latest.status !== "RENDERING") onFinishedRef.current(latest)
       } catch {
-        // A failed poll is not worth surfacing; the next tick retries, and a
-        // render that genuinely failed comes back as a FAILED status.
       }
     }, POLL_INTERVAL_MS)
 

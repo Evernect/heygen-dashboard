@@ -22,8 +22,6 @@ const PLATFORMS = ["FACEBOOK", "INSTAGRAM", "YOUTUBE", "TIKTOK", "X"]
 const listScriptsQuerySchema = z.object({
   status: z.enum(SCRIPT_STATUSES).optional(),
   topicId: z.string().trim().min(1).optional(),
-  // Also return the other options of every topic that matched, so the UI can
-  // show which one was already picked next to the ones still on the table.
   includeSiblings: z
     .enum(["true", "false"])
     .transform((value) => value === "true")
@@ -61,11 +59,6 @@ const includeRelations = {
   posts: true,
 }
 
-/**
- * Scopes a lookup by id to the caller. `findFirst` rather than `findUnique`,
- * so another tenant's script id is not found rather than returned for the
- * caller to check afterwards.
- */
 function owned(req) {
   return { id: req.params.id, userId: req.user.id }
 }

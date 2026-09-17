@@ -2,7 +2,6 @@
 
 const { badRequest } = require("../utils/errors")
 
-// Validates `req.body` / `req.query` 
 function validate(schema, source = "body") {
   return (req, res, next) => {
     const result = schema.safeParse(req[source])
@@ -16,7 +15,6 @@ function validate(schema, source = "body") {
       return next(badRequest("Validation failed", details))
     }
 
-    // req.query is a getter in Express 5, so assign onto a shadow property.
     if (source === "query") req.validatedQuery = result.data
     else req[source] = result.data
 

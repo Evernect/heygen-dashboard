@@ -27,7 +27,6 @@ export function HeygenConnectionPanel({
   allowDisconnect = true,
 }: {
   initialConnection: HeygenConnection | null
-  /** Called after a key is accepted, so onboarding can move the user on. */
   onConnected?: (connection: HeygenConnection) => void
   connectLabel?: string
   allowDisconnect?: boolean
@@ -73,7 +72,6 @@ export function HeygenConnectionPanel({
     }
   }
 
-  // Nothing stored yet: the only thing to show is the way in.
   if (!connection) {
     return (
       <HeygenKeyForm

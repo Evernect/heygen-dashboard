@@ -7,7 +7,6 @@ const { logger } = require("../utils/logger")
 const GRAPH_VERSION = "v21.0"
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`
 
-// Instagram containers take ~30-60s to transcode before they can publish
 const POLL_INTERVAL_MS = 5000
 const MAX_POLL_ATTEMPTS = 24
 
@@ -48,7 +47,6 @@ function dryRunId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-// Publishes to a Facebook Page
 async function publishToFacebook({ videoUrl, title, caption }) {
   if (env.DRY_RUN_META) {
     logger.warn(
@@ -71,7 +69,6 @@ async function publishToFacebook({ videoUrl, title, caption }) {
   const videoId = created?.id
   if (!videoId) throw new HttpError(502, "Facebook did not return a video id")
 
-  // Facebook accepts the upload immediately but processes asynchronously.
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
     await sleep(POLL_INTERVAL_MS)
 
@@ -90,7 +87,6 @@ async function publishToFacebook({ videoUrl, title, caption }) {
     }
   }
 
-  // Processing usually finishes eventually; surface the id so it isn't lost.
   throw new HttpError(
     504,
     `Facebook video ${videoId} was still processing after ${
@@ -99,7 +95,6 @@ async function publishToFacebook({ videoUrl, title, caption }) {
   )
 }
 
-// Publishes an Instagram Reel
 async function publishToInstagram({ videoUrl, caption }) {
   if (env.DRY_RUN_META) {
     logger.warn(`[dry-run] Would publish Reel to Instagram -> ${videoUrl}`)

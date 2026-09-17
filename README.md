@@ -37,8 +37,6 @@ cd backend
 cp .env.example .env        # then fill it in
 npm install
 npx prisma migrate deploy
-npm run db:seed -- <user-id>    # optional: example topics for one user
-npm run news:seed -- <user-id>  # optional: example news feeds and positions
 npm test                        # clustering, scoring and filtering
 npm run dev                     # http://localhost:4000
 ```
@@ -285,8 +283,7 @@ defaults; the row is written the first time they save. Script generation then
 uses that user's OpenAI model and word range, and a render uses their avatar,
 look and engine.
 
-`approvedBy` records which user approved a script. Seeding needs an owner, so
-`npm run db:seed -- <user-id>` takes one (`select id, email from auth.users`).
+`approvedBy` records which user approved a script.
 
 ## Picking an avatar
 

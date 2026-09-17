@@ -24,10 +24,6 @@ const SECTIONS = [
   { name: "Features", link: "#features" },
 ]
 
-/**
- * `user` is resolved on the server by the page, so the signed-in header is
- * correct in the first paint — no flash of "Sign in" for someone who is.
- */
 export function LandingNav({ user }: { user: AuthUser | null }) {
   const [isOpen, setIsOpen] = useState(false)
 

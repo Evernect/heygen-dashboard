@@ -56,9 +56,7 @@ test("relevance needs one term AND one place", () => {
   const places = KEYWORD.places
 
   assert.equal(matchesRelevance("Gas tax rises in California", terms, places), true)
-  // term but no place
   assert.equal(matchesRelevance("Gas tax rises in Texas", terms, places), false)
-  // place but no term
   assert.equal(matchesRelevance("California housing bill", terms, places), false)
 })
 
@@ -86,14 +84,12 @@ test("flatten keeps fresh, on-topic articles and counts the rest", () => {
         pubDate: hoursAgo(3),
       },
       {
-        // too old
         title: "California gas tax debate opens - LA Times",
         description: "Sacramento.",
         link: "https://latimes.com/b",
         pubDate: hoursAgo(50),
       },
       {
-        // off topic: no term
         title: "California beach cleanup draws a crowd - KTLA",
         description: "Sacramento volunteers.",
         link: "https://ktla.com/c",
@@ -126,7 +122,6 @@ test("flatten keeps fresh, on-topic articles and counts the rest", () => {
 })
 
 test("a single-item feed is not mistaken for an empty one", () => {
-  // XML parsers collapse a one-element list into a bare object.
   const { articles } = flattenFeedItems({
     feed: feedWith({
       title: "Sacramento moves on the gas tax today - KCRA",

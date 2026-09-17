@@ -14,7 +14,6 @@ import type {
 } from "@/lib/types/news-config"
 
 export interface ParsedKeywordRow extends ParsedRow, CreateKeywordInput {
-  /** True when a feed with this code already exists and will be overwritten. */
   isUpdate: boolean
 }
 
@@ -22,13 +21,6 @@ export interface ParsedPositionRow extends ParsedRow, CreatePositionInput {
   isUpdate: boolean
 }
 
-/**
- * The Keywords tab.
- *
- * Column names match the original sheet (`keyword_id`, `topic_label`), with the
- * obvious re-typings accepted too. `terms` and `places` are pipe separated
- * there and stay that way here.
- */
 export async function parseKeywordsFile(
   file: File,
   existingCodes: string[] = []
@@ -84,10 +76,6 @@ export async function parseKeywordsFile(
   })
 }
 
-/**
- * The Positions tab, whose columns are `topic_label` and `position_summary`
- * rather than the issue/stance the API speaks in.
- */
 export async function parsePositionsFile(
   file: File,
   existingIssues: string[] = []
@@ -140,7 +128,6 @@ export async function parsePositionsFile(
   })
 }
 
-/** Drops the fields that only exist for the preview table. */
 export function keywordPayload(row: ParsedKeywordRow): CreateKeywordInput {
   return {
     keywordId: row.keywordId,

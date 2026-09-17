@@ -3,7 +3,6 @@
 require("dotenv/config")
 const { z } = require("zod")
 
-// Environment contract, validated once at boot.
 const schema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -24,9 +23,6 @@ const schema = z.object({
   HEYGEN_API_KEY: z.string().optional(),
   HEYGEN_AVATAR_ID: z.string().optional(),
 
-  // Jina Reader, used to pull article text for the daily news pipeline.
-  // Optional on purpose: without it the run still completes, with every summary
-  // drawn from headlines alone.
   JINA_API_KEY: z.string().optional(),
 
   FACEBOOK_PAGE_ID: z.string().optional(),
@@ -35,8 +31,6 @@ const schema = z.object({
 
   CRON_SECRET: z.string().optional(),
 
-  // 32 bytes, hex or base64. Encrypts third-party credentials at rest.
-  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
 
   DRY_RUN_HEYGEN: z
@@ -64,14 +58,12 @@ if (!parsed.success) {
 
 const env = parsed.data
 
-// Comma-separated CORS_ORIGIN into an array, for multiple deploy origins
 env.corsOrigins = env.CORS_ORIGIN.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean)
 
 env.isProduction = env.NODE_ENV === "production"
 
-// Error when a feature is used without its credentials
 function requireEnv(...keys) {
   const missing = keys.filter((key) => !env[key])
   if (missing.length) {

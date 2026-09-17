@@ -7,13 +7,10 @@ const READER_BASE = "https://r.jina.ai/"
 const TIMEOUT_MS = 25000
 const INTERVAL_MS = 1500
 
-/** Below this, whatever came back is a stub, a paywall or an error page. */
 const MIN_USABLE_LENGTH = 200
 
-/** What the selector is allowed to read for one story. */
 const MAX_LENGTH = 2500
 
-/** Reader error pages come back with a 200 and these markers in the body. */
 const ERROR_MARKERS = [
   "AbuseAlleviationError",
   "Warning: Target URL returned error",
@@ -26,13 +23,6 @@ function isUsable(text) {
   return !ERROR_MARKERS.some((marker) => text.includes(marker))
 }
 
-/**
- * Full text for one article, or null.
- *
- * Null is an ordinary outcome, not a failure: the selector falls back to
- * headlines and marks the summary as such. Paywalls, dead links and a missing
- * API key all land here.
- */
 async function fetchArticleText(url) {
   if (!url) return null
 
@@ -57,14 +47,6 @@ async function fetchArticleText(url) {
   }
 }
 
-/**
- * Text for the best URL of each cluster, in order, spaced out like the feed
- * fetches. Returns an array aligned with `clusters` so position is meaningful.
- *
- * With no key configured, every entry is null and the run continues on
- * headlines alone — that is deliberate, so the pipeline works before anyone has
- * bought a Jina key.
- */
 async function fetchArticleTexts(clusters) {
   if (!env.JINA_API_KEY) {
     logger.warn(

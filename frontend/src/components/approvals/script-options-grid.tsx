@@ -32,7 +32,6 @@ const OPTION_LETTERS = ["A", "B", "C", "D", "E"]
 const CHOSEN_TINT =
   "border-[color-mix(in_oklch,var(--brand-blue),transparent_60%)] bg-[color-mix(in_oklch,var(--brand-blue),var(--background)_88%)] text-[var(--brand-blue-dark)] dark:bg-[color-mix(in_oklch,var(--brand-blue),transparent_84%)] dark:text-[var(--brand-blue)]"
 
-/** Same box as a `size="sm"` button, so the footer slots line up. */
 const FOOTER_PILL =
   "flex h-7 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-[0.8rem] font-medium [&_svg]:size-3.5 [&_svg]:shrink-0"
 

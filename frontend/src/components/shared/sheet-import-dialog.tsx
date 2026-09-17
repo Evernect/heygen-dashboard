@@ -27,7 +27,6 @@ import { cn } from "@/lib/utils"
 
 export interface ImportColumn<T> {
   label: string
-  /** The cell's text. Kept as a function so a row can render a derived value. */
   render: (row: T) => React.ReactNode
   className?: string
 }
@@ -40,13 +39,6 @@ function ColumnCode({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * Upload a CSV or Excel file, see what was understood, then commit it.
- *
- * The preview is the point: a sheet that has been edited by hand usually has a
- * few rows that will not import, and seeing which ones before anything is
- * written is what stops a silent half-import.
- */
 export function SheetImportDialog<T extends ParsedRow>({
   open,
   onOpenChange,
@@ -68,7 +60,6 @@ export function SheetImportDialog<T extends ParsedRow>({
   parse: (file: File) => Promise<T[]>
   submit: (rows: T[]) => Promise<number>
   onImported: () => void
-  /** Singular, e.g. "feed". Pluralised with an s. */
   noun: string
 }) {
   const { notifySuccess, notifyError } = useToastFeedback()

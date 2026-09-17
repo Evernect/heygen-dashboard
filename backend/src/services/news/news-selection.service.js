@@ -8,13 +8,6 @@ const {
   pickKeys,
 } = require("../prompts/news-selection.prompt")
 
-/**
- * Asks the model which of the day's clusters are worth a video.
- *
- * Returns between zero and `maxPicks` picks. Zero is a legitimate answer on a
- * day when nothing clears the exclusions, and is much better than three padded
- * ones — the prompt says so and the schema makes declining a slot legal.
- */
 async function selectTopics({
   userId,
   profile,

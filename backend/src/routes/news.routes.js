@@ -9,10 +9,8 @@ const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
 
-// Every tenant configures their own feeds, positions and voice.
 router.use(requireUser)
 
-// --- Keywords ---
 router.get("/keywords", asyncHandler(controller.listKeywords))
 
 router.post(
@@ -35,7 +33,6 @@ router.patch(
 
 router.delete("/keywords/:id", asyncHandler(controller.deleteKeyword))
 
-// --- Campaign profile ---
 router.get("/campaign-profile", asyncHandler(controller.readCampaignProfile))
 
 router.put(
@@ -44,7 +41,6 @@ router.put(
   asyncHandler(controller.writeCampaignProfile)
 )
 
-// --- Positions ---
 router.get("/positions", asyncHandler(controller.listPositions))
 
 router.post(
@@ -67,7 +63,6 @@ router.patch(
 
 router.delete("/positions/:id", asyncHandler(controller.deletePosition))
 
-// --- Style playbook ---
 router.get("/style-playbook", asyncHandler(controller.listPlaybook))
 
 router.post(

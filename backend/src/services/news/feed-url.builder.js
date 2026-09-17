@@ -2,17 +2,6 @@
 
 const GOOGLE_NEWS_LOCALE = "hl=en-US&gl=US&ceid=US:en"
 
-/**
- * One feed URL for one keyword row.
- *
- * The `query` column carries its own routing:
- *   RSS:<url>    a publisher's own feed, used verbatim — these give real
- *                article links rather than Google News redirect wrappers
- *   GEO:<place>  Google News' feed for a place
- *   anything else  a Google News keyword search
- *
- * Returns null for a row with nothing to fetch, which the caller skips.
- */
 function buildFeedUrl(keyword) {
   const query = String(keyword?.query ?? "").trim()
   if (!query) return null
@@ -31,10 +20,6 @@ function buildFeedUrl(keyword) {
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${GOOGLE_NEWS_LOCALE}`
 }
 
-/**
- * The active keywords paired with the URL each one should fetch. Inactive rows
- * and rows with an unusable query drop out here rather than later.
- */
 function buildFeedRequests(keywords) {
   const requests = []
 

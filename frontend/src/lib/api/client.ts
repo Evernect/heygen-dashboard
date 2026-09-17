@@ -25,22 +25,12 @@ export class ApiConfigError extends Error {
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined | null>
-  /**
-   * Server components have no browser session to read, so they pass the
-   * access token they already hold. In the browser it is resolved for you.
-   */
   accessToken?: string | null
 }
 
-/**
- * The signed-in user's access token, read from the browser session. The
- * backend needs it to know whose HeyGen credentials a request should run
- * with — an anonymous request still works, it just gets no connection.
- */
 async function browserAccessToken() {
   if (typeof window === "undefined" || !isSupabaseConfigured) return null
 
-  // Imported lazily so the Supabase client never lands in a server bundle.
   const { createClient } = await import("@/lib/supabase/client")
   const { data } = await createClient().auth.getSession()
 

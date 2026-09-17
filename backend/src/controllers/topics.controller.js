@@ -26,14 +26,6 @@ const bulkCreateTopicsSchema = z.object({
 
 const DEFAULT_TOPICS_PAGE_SIZE = 20
 
-/**
- * Scopes a lookup by id to the caller.
- *
- * `findFirst` rather than `findUnique`: a unique lookup can only match on the
- * id, so it would hand back another tenant's topic and leave the ownership
- * check to the caller. Folding the owner into the query means someone else's
- * id is simply not found.
- */
 function owned(req) {
   return { id: req.params.id, userId: req.user.id }
 }
@@ -57,8 +49,6 @@ async function listTopics(req, res) {
     pageSize = DEFAULT_TOPICS_PAGE_SIZE,
   } = req.validatedQuery ?? {}
 
-  // MANUAL only: topics materialised by a daily news item live on the Daily
-  // News screen, and the content bank is for what a person put there.
   const where = {
     userId: req.user.id,
     source: "MANUAL",
@@ -121,7 +111,6 @@ async function deleteTopic(req, res) {
   res.status(204).send()
 }
 
-// Runs the LLM for one topic, producing several options to pick from
 async function generateFromTopic(req, res) {
   const scripts = await generateForTopic({
     topicId: req.params.id,

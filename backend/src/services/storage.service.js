@@ -24,7 +24,6 @@ function slugify(value) {
     .slice(0, 60)
 }
 
-// Re-hosts a rendered video on Supabase Storage and returns a public URL
 async function uploadVideo({ scriptId, title, buffer }) {
   const supabase = getClient()
   const bucket = env.SUPABASE_STORAGE_BUCKET
@@ -32,7 +31,6 @@ async function uploadVideo({ scriptId, title, buffer }) {
 
   const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
     contentType: "video/mp4",
-    // Retrying a failed publish re-uses the same path.
     upsert: true,
   })
 

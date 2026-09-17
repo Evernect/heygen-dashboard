@@ -1,6 +1,5 @@
 import * as XLSX from "xlsx"
 
-/** Every importer shares this ceiling, and so do the backend bulk endpoints. */
 export const MAX_IMPORT_ROWS = 200
 
 export interface ParsedRow {
@@ -8,21 +7,10 @@ export interface ParsedRow {
   error: string | null
 }
 
-/**
- * Header lookup that forgives how a column was actually spelled.
- *
- * The original Google Sheets tabs use snake_case (`keyword_id`,
- * `position_summary`), but someone re-typing a sheet by hand writes "Keyword
- * ID". Both normalise to the same thing.
- */
 function normalise(key: string) {
   return key.trim().toLowerCase().replace(/[\s-]+/g, "_")
 }
 
-/**
- * The first matching column name, or undefined. Aliases are tried in order, so
- * put the sheet's own spelling first.
- */
 export function findColumn(keys: string[], ...aliases: string[]) {
   const normalised = new Map(keys.map((key) => [normalise(key), key]))
 
@@ -39,7 +27,6 @@ export function cell(record: Record<string, unknown>, key: string | undefined) {
   return String(record[key] ?? "").trim()
 }
 
-/** A pipe-separated column, the way the sheets store lists. */
 export function pipeList(value: string) {
   return value
     .split("|")
@@ -47,17 +34,12 @@ export function pipeList(value: string) {
     .filter(Boolean)
 }
 
-/** The sheets use Y/N; a re-typed file might use TRUE or 1. */
 export function sheetBoolean(value: string, fallback = true) {
   const text = value.trim().toLowerCase()
   if (!text) return fallback
   return ["y", "yes", "true", "1"].includes(text)
 }
 
-/**
- * Excel serial dates come back as numbers unless asked otherwise, so a date
- * cell is read leniently and simply dropped when it makes no sense.
- */
 export function sheetDate(value: string): string | null {
   if (!value) return null
 
@@ -73,10 +55,6 @@ export function sheetDate(value: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-/**
- * Reads the first sheet of a CSV or Excel file into records, with the row
- * ceiling applied.
- */
 export async function readSheetRecords(file: File) {
   let workbook: XLSX.WorkBook
 
@@ -107,7 +85,6 @@ export async function readSheetRecords(file: File) {
   return { records, keys: Object.keys(records[0]) }
 }
 
-/** The error shown when a file has none of the columns an importer needs. */
 export function missingColumns(...names: string[]) {
   return new Error(
     `Missing ${names.map((name) => `'${name}'`).join(" and ")} — check the header row of your file.`

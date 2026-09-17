@@ -11,10 +11,6 @@ const VERSION = "v1"
 
 let cachedKey = null
 
-/**
- * The 32-byte master key, accepted as 64 hex characters or as base64. Read
- * lazily so a deployment that never stores a credential does not need one.
- */
 function masterKey() {
   if (cachedKey) return cachedKey
 
@@ -41,7 +37,6 @@ function masterKey() {
   return cachedKey
 }
 
-/** Returns `v1:<iv>:<authTag>:<ciphertext>`, all base64. */
 function encryptSecret(plaintext) {
   const iv = crypto.randomBytes(IV_BYTES)
   const cipher = crypto.createCipheriv(ALGORITHM, masterKey(), iv)
@@ -80,7 +75,6 @@ function decryptSecret(payload) {
     ]).toString("utf8")
   } catch (error) {
     if (error instanceof HttpError) throw error
-    // Wrong key, or the row was tampered with. Either way it is unusable.
     throw new HttpError(
       500,
       "Stored credential could not be decrypted. It was likely encrypted with a different CREDENTIAL_ENCRYPTION_KEY — reconnect the account."
@@ -88,7 +82,6 @@ function decryptSecret(payload) {
   }
 }
 
-/** A safe-to-display hint, e.g. `NWQ4…a1f2`. Never the whole secret. */
 function maskSecret(secret) {
   const value = String(secret)
   if (value.length <= 8) return "••••"

@@ -62,7 +62,6 @@ test("escaped HTML in a description is decoded, then stripped downstream", () =>
 
   assert.ok(description.includes("<a href="))
 
-  // The place must not be satisfied by a hostname inside that anchor.
   const { articles } = flattenFeedItems({
     feed,
     keyword: {

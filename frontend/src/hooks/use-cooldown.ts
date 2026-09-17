@@ -2,7 +2,6 @@
 
 import * as React from "react"
 
-/** Counts down to zero once per second. Used to rate-limit "Resend code". */
 export function useCooldown(initialSeconds = 0) {
   const [seconds, setSeconds] = React.useState(initialSeconds)
 

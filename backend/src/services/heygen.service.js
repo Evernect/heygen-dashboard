@@ -8,7 +8,6 @@ const { logger } = require("../utils/logger")
 
 const API_BASE = "https://api.heygen.com/v3"
 
-// A short, freely-licensed sample used when DRY_RUN_HEYGEN is on
 const DRY_RUN_VIDEO_URL = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
 
 const DRY_RUN_POLLS_BEFORE_READY = 1
@@ -25,11 +24,6 @@ function withQuery(path, query) {
   return qs ? `${path}?${qs}` : path
 }
 
-/**
- * One HeyGen call, authenticated with an explicit key. Callers either pass a
- * key they are verifying or resolve the signed-in user's stored one first —
- * nothing here reaches for a deployment-wide default on its own.
- */
 async function heygenFetch(path, options = {}, apiKey) {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -46,8 +40,6 @@ async function heygenFetch(path, options = {}, apiKey) {
     const message =
       body?.error?.message ?? body?.message ?? `HTTP ${response.status}`
 
-    // A rejected key is the caller's problem to fix, not an upstream outage,
-    // so it must not be flattened into the generic 502 below.
     if (response.status === 401 || response.status === 403) {
       throw new HttpError(
         401,
@@ -61,11 +53,6 @@ async function heygenFetch(path, options = {}, apiKey) {
   return body
 }
 
-/**
- * GET /v3/users/me — the cheapest authenticated call HeyGen offers, so it is
- * what proves a key is real before it is stored. A bad key comes back 401,
- * which `heygenFetch` has already turned into a message worth showing.
- */
 async function fetchAccount(apiKey) {
   const body = await heygenFetch("/users/me", {}, apiKey)
   const data = body?.data ?? {}
@@ -80,11 +67,6 @@ async function fetchAccount(apiKey) {
   }
 }
 
-/**
- * Both avatar endpoints answer with `{ data: [...], has_more, next_token }` —
- * the array sits at the top level, and `next_token` only appears once there is
- * a further page to ask for.
- */
 function toPage(body, mapItem) {
   return {
     items: (Array.isArray(body?.data) ? body.data : []).map(mapItem),
@@ -101,7 +83,6 @@ function mapGroup(group) {
     previewImageUrl: group.preview_image_url ?? null,
     previewVideoUrl: group.preview_video_url ?? null,
     looksCount: group.looks_count ?? 0,
-    // Private groups report training progress; only `completed` can render.
     status: group.status ?? null,
   }
 }
@@ -114,17 +95,13 @@ function mapLook(look) {
     avatarType: look.avatar_type ?? null,
     gender: look.gender ?? null,
     previewImageUrl: look.preview_image_url ?? null,
-    // Photo avatars have no preview video, only an image.
     previewVideoUrl: look.preview_video_url ?? null,
-    // Requesting an engine missing from this list is a 400, so the UI only
-    // offers what the selected look actually accepts.
     supportedEngines: look.supported_api_engines ?? [],
     preferredOrientation: look.preferred_orientation ?? null,
     status: look.status ?? null,
   }
 }
 
-// GET /v3/avatars — the characters. Each one holds one or more looks.
 async function listAvatarGroups({ ownership, limit = 50, token, userId } = {}) {
   const body = await heygenFetch(
     withQuery("/avatars", { ownership, limit, token }),
@@ -135,8 +112,6 @@ async function listAvatarGroups({ ownership, limit = 50, token, userId } = {}) {
   return toPage(body, mapGroup)
 }
 
-// GET /v3/avatars/looks — the look `id` is what POST /v3/videos wants as
-// `avatar_id`. `groupId` narrows it to one character's wardrobe.
 async function listAvatarLooks({
   groupId,
   ownership,
@@ -158,7 +133,6 @@ async function listAvatarLooks({
   return toPage(body, mapLook)
 }
 
-// Submits one render
 async function createVideo({ title, scriptText, userId }) {
   if (env.DRY_RUN_HEYGEN) {
     const videoId = `dryrun-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -188,14 +162,11 @@ async function createVideo({ title, scriptText, userId }) {
         title,
         avatar_id: avatarId,
         script: scriptText,
-        // No voice_id: HeyGen then speaks with the avatar's own default
-        // voice, which is the right one far more often than a hand-picked id.
         aspect_ratio: "9:16",
         resolution: "1080p",
         engine: { type: settings.heygenAvatarEngine },
         caption: { style: "default", file_format: "srt" },
         voice_settings: {
-          // The API types this as a number in 0.5-1.5; a string is rejected.
           speed: settings.heygenVoiceSpeed,
           locale: settings.heygenVoiceLocale,
         },
@@ -247,7 +218,6 @@ async function getVideoStatus(videoId, { userId } = {}) {
   return { status: "processing" }
 }
 
-// Downloads the finished render so it can be re-hosted on Supabase Storage
 async function downloadVideo(videoUrl) {
   const response = await fetch(videoUrl)
 

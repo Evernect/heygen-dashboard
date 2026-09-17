@@ -9,8 +9,6 @@ const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
 
-// Settings and the avatar catalogue are both per-user: the first is the
-// caller's own row, the second is read with the caller's HeyGen key.
 router.use(requireUser)
 
 router.get("/", asyncHandler(controller.readSettings))

@@ -2,13 +2,6 @@
 
 const { IMPORTANCE_LEVELS } = require("./news-selection.prompt")
 
-/**
- * What to say when there is nothing in the content bank yet.
- *
- * An empty "# VOICE REFERENCE" heading reads to a model like the examples were
- * deliberately left blank, which is worse than saying plainly that there are
- * none and what to do instead.
- */
 const NO_VOICE_EXAMPLES = `No prior examples are available yet. Write plainly in
 the first person, taking the voice entirely from the stated positions below:
 short sentences, name the problem, say what he would do. Do not imitate a
@@ -124,12 +117,6 @@ function buildAngleSchema(topicIds) {
   }
 }
 
-/**
- * One fixed slot per topic handed in. `conflict_flag` is a required string with
- * "" meaning no conflict rather than a nullable field — under strict mode a
- * nullable becomes `["string", "null"]`, which models handle less reliably, and
- * an empty string is what the original workflow meant by "no conflict" anyway.
- */
 function buildNewsAnglesSchema({ count = 3, topicIds = [] } = {}) {
   const angle = buildAngleSchema(topicIds)
   const keys = angleKeys(count)

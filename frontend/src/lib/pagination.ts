@@ -1,9 +1,3 @@
-/**
- * The page numbers to show, with ellipses standing in for the gaps.
- *
- * Always keeps the first page, the last page and the current page's immediate
- * neighbours, so the control never reflows as you move through it.
- */
 export function getPageNumbers(
   current: number,
   total: number

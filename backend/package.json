@@ -10,9 +10,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "db:seed": "prisma db seed",
     "news:preview": "node scripts/news-preview.js",
-    "news:seed": "node scripts/seed-news-config.js",
     "test": "node --test \"test/*.test.js\""
   },
   "keywords": [],

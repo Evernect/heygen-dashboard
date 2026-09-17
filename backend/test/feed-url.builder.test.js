@@ -25,7 +25,6 @@ test("anything else becomes an encoded keyword search", () => {
   const url = buildFeedUrl({ query: '(gas tax OR "fuel tax") California when:1d' })
 
   assert.ok(url.startsWith("https://news.google.com/rss/search?q="))
-  // The operators have to survive encoding intact, quotes and colon included.
   assert.ok(url.includes("%22fuel%20tax%22"))
   assert.ok(url.includes("when%3A1d"))
 })

@@ -5,7 +5,6 @@ import { ModeToggle } from "@/components/theme/mode-toggle"
 import { UserMenu } from "@/components/layout/user-menu"
 import { getCurrentUser } from "@/lib/auth/user"
 
-// Onboarding is behind the session cookie, so it can never be prerendered.
 export const dynamic = "force-dynamic"
 
 export default async function OnboardingLayout({ children }: LayoutProps<"/">) {

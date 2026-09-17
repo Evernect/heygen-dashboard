@@ -25,12 +25,6 @@ import {
 } from "@/lib/utils/parse-news-files"
 import type { CandidatePosition } from "@/lib/types/news-config"
 
-/**
- * The candidate's stated positions.
- *
- * A list with its own endpoints rather than a field on the settings form, since
- * that form compares values with `===` and would never notice a row changing.
- */
 export function PositionsPanel() {
   const { notifySuccess, notifyError } = useToastFeedback()
   const { data, isLoading, refetch } = useAsyncData(() => listPositions(), [])

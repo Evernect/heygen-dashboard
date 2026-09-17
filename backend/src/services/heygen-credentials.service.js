@@ -5,7 +5,6 @@ const { decryptSecret, encryptSecret, maskSecret } = require("../lib/crypto")
 const { env } = require("../lib/env")
 const { HttpError } = require("../utils/errors")
 
-/** The row as the dashboard is allowed to see it — never the key itself. */
 function toPublic(connection) {
   if (!connection) return null
 
@@ -33,7 +32,6 @@ async function saveConnection({ userId, apiKey, account }) {
     lastVerifiedAt: new Date(),
   }
 
-  // Upsert, so "connect" and "update the key" are the same request.
   return prisma.heygenConnection.upsert({
     where: { userId },
     create: { userId, ...data },
@@ -45,14 +43,6 @@ function deleteConnection(userId) {
   return prisma.heygenConnection.deleteMany({ where: { userId } })
 }
 
-/**
- * The key a HeyGen call should run with.
- *
- * Always the owner's own connection — a request knows the caller, and
- * background work reads `Script.userId`, so even the `pg_cron` tick renders on
- * the right account. `HEYGEN_API_KEY` is only reached for a user who has not
- * connected one, which the onboarding gate makes hard to arrive at.
- */
 async function resolveApiKey(userId) {
   if (userId) {
     const connection = await getConnection(userId)

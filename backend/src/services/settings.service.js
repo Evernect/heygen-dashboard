@@ -20,8 +20,6 @@ function defaults() {
   }
 }
 
-// One entry per user. A tenant that never signs in costs nothing, and a write
-// only ever evicts its own author's entry.
 const cache = new Map()
 let warnedMissingTable = false
 
@@ -29,16 +27,6 @@ function isMissingTable(error) {
   return error?.code === "P2021"
 }
 
-/**
- * The settings a piece of work should run with.
- *
- * A user who has never opened the Settings page has no row yet and gets the
- * environment defaults; the row is created the first time they save one.
- *
- * `userId` is only ever null for a caller with no identity at all, which the
- * per-user routes now reject — background work reads the owner off the script
- * it is advancing.
- */
 async function getSettings(userId) {
   if (!userId) return { userId: null, ...defaults() }
 
@@ -77,7 +65,6 @@ async function updateSettings(userId, patch) {
   return saved
 }
 
-/** Drops one user's cached settings, or everybody's when given no id. */
 function invalidate(userId) {
   if (userId) cache.delete(userId)
   else cache.clear()

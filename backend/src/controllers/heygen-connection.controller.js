@@ -6,8 +6,6 @@ const credentials = require("../services/heygen-credentials.service")
 const heygen = require("../services/heygen.service")
 const { logger } = require("../utils/logger")
 
-// HeyGen keys are opaque strings; the only thing worth asserting up front is
-// that something was actually pasted. Whether it works is HeyGen's answer.
 const connectSchema = z.object({
   apiKey: z
     .string()
@@ -25,8 +23,6 @@ async function readConnection(req, res) {
 async function saveConnection(req, res) {
   const { apiKey } = req.body
 
-  // Verify before storing: a key that cannot read its own account is worth
-  // nothing later, and the caller gets the failure while it can still fix it.
   const account = await heygen.fetchAccount(apiKey)
 
   const connection = await credentials.saveConnection({

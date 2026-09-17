@@ -45,18 +45,10 @@ const EMPTY: CampaignProfile = {
   updatedAt: "",
 }
 
-/** A date input wants YYYY-MM-DD, the API returns an ISO timestamp. */
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : ""
 }
 
-/**
- * The campaign profile, with its own save button.
- *
- * Kept out of the main settings form on purpose: that form's dirty-tracking
- * compares fields with `===`, which cannot see a change inside
- * `districtTerms`.
- */
 export function CampaignProfileSection() {
   const { notifySuccess, notifyError } = useToastFeedback()
   const { data, isLoading, refetch } = useAsyncData(

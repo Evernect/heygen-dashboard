@@ -99,8 +99,6 @@ export function DailyNewsView() {
     setPage(1)
   }
 
-  // Deliberately identical to the content bank's: generate, then send the user
-  // to the options waiting for them.
   async function handleGenerate(item: DailyNewsItem) {
     setGeneratingId(item.id)
     try {

@@ -11,7 +11,6 @@ const router = Router()
 
 router.use(requireUser)
 
-// Declared before "/:id" so neither is shadowed by the other.
 router.get("/runs/latest", asyncHandler(controller.latestRun))
 router.get("/runs", asyncHandler(controller.listRuns))
 

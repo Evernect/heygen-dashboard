@@ -9,8 +9,6 @@ const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
 
-// A HeyGen connection belongs to one person, so every route here needs to
-// know who is asking.
 router.use(requireUser)
 
 router.get("/connection", asyncHandler(controller.readConnection))

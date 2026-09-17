@@ -18,7 +18,6 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(bufferA, bufferB)
 }
 
-// Guards the scheduling webhook
 function cronAuth(req, res, next) {
   if (!env.CRON_SECRET) {
     return next(

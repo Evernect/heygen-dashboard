@@ -2,14 +2,8 @@
 
 const { FRESHNESS_HOURS } = require("./scoring-constants")
 
-/** Google News titles read "Headline - Outlet Name". */
 const OUTLET_SEPARATOR = " - "
 
-/**
- * Below this many characters before the separator, the " - " is part of the
- * headline rather than the outlet suffix. Carried over from the original
- * workflow, where it stopped short headlines being cut in half.
- */
 const MIN_HEADLINE_LENGTH = 20
 
 function stripHtml(value) {
@@ -21,7 +15,6 @@ function toArray(value) {
   return Array.isArray(value) ? value : [value]
 }
 
-/** RSS fields come through as either a string or `{ _: "text", ...attrs }`. */
 function textOf(value) {
   if (value == null) return ""
   if (typeof value === "string") return value
@@ -29,10 +22,6 @@ function textOf(value) {
   return String(value)
 }
 
-/**
- * Splits "Headline - Outlet" into its two halves, falling back to the feed's
- * own `<source>` element when the title carries no suffix.
- */
 function splitGoogleNewsTitle(rawTitle, sourceElement) {
   const raw = String(rawTitle ?? "").trim()
   const at = raw.lastIndexOf(OUTLET_SEPARATOR)
@@ -50,17 +39,6 @@ function splitGoogleNewsTitle(rawTitle, sourceElement) {
   }
 }
 
-/**
- * Whether an article is actually about what the keyword asked for.
- *
- * This is not redundant with the feed query. Google News ignores grouped
- * boolean operators, so `(gas tax OR "fuel tax") California` constrains almost
- * nothing — the feed comes back with whatever it felt like matching. The terms
- * and places columns exist to be enforced here, in code, after the fetch.
- * Deleting this check silently fills the pipeline with off-topic stories.
- *
- * An empty list means "no constraint", so a keyword can opt out of either half.
- */
 function matchesRelevance(haystack, terms, places) {
   const hay = String(haystack ?? "").toLowerCase()
 
@@ -78,12 +56,6 @@ function matchesRelevance(haystack, terms, places) {
   return true
 }
 
-/**
- * Turns one parsed feed into article rows, dropping anything stale or
- * off-topic. Returns the kept rows plus counts, so a run can report how much a
- * keyword's filters threw away — usually the first clue that `terms` or
- * `places` is too narrow.
- */
 function flattenFeedItems({
   feed,
   keyword,

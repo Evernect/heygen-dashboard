@@ -44,7 +44,6 @@ const heygenListQuerySchema = z.object({
   ownership: z.enum(["public", "private"]).optional(),
   groupId: z.string().trim().min(1).optional(),
   token: z.string().trim().min(1).optional(),
-  // HeyGen caps both avatar endpoints at 50 per page and 400s above it.
   limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 

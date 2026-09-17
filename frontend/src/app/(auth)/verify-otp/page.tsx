@@ -13,7 +13,6 @@ export default async function VerifyOtpPage({
   const params = await searchParams
   const email = typeof params.email === "string" ? params.email : ""
 
-  // Reaching this page without an address means the signup step was skipped.
   if (!email) redirect("/signup")
 
   return <VerifyOtpForm email={email} />

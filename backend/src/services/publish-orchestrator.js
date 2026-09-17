@@ -7,7 +7,6 @@ const { logger } = require("../utils/logger")
 
 const BATCH_SIZE = 5
 
-
 const RESUME_STALE_AFTER = "3 minutes"
 
 const MAX_ATTEMPTS = 5
@@ -74,7 +73,6 @@ async function markFailed(scriptId, error) {
   logger.error(`Script ${scriptId} failed: ${message}`)
 }
 
-// Publish to each target platform that doesn't already have a successful post
 async function publishToPlatforms(script) {
   const existing = await prisma.platformPost.findMany({
     where: { scriptId: script.id },

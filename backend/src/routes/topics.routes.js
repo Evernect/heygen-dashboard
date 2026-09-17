@@ -9,8 +9,6 @@ const { asyncHandler } = require("../utils/errors")
 
 const router = Router()
 
-// A content bank belongs to one tenant, so every route here needs to know
-// who is asking.
 router.use(requireUser)
 
 router.get(
