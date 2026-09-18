@@ -44,6 +44,38 @@ enum PlatformPostStatus {
   FAILED
 }
 
+enum PerformanceTier {
+  TOP
+  MID
+  BOTTOM
+  TOO_NEW
+}
+
+enum HookType {
+  RHETORICAL_QUESTION
+  BLUNT_CLAIM
+  CONTRAST
+  DIRECT_ADDRESS
+}
+
+enum InsightsRunKind {
+  METRICS
+  ANALYSIS
+}
+
+enum InsightsRunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  SKIPPED
+}
+
+enum StylePlaybookSource {
+  MANUAL
+  GENERATED
+}
+
 model Topic {
   id     String      @id @default(uuid())
   issue  String
@@ -111,6 +143,8 @@ model Script {
 
   posts PlatformPost[]
 
+  performance ScriptPerformance?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -155,6 +189,71 @@ model VideoMetric {
   @@index([platformPostId, fetchedAt])
 }
 
+model ScriptPerformance {
+  id       String @id @default(uuid())
+  userId   String
+  scriptId String @unique
+  script   Script @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  postedAt        DateTime?
+  platformsPosted Platform[]
+
+  hookType             HookType?
+  hookFirstWords       String?
+  hookWordCount        Int?
+  outroLeadIn          String?   @db.Text
+  breakCount           Int?
+  avgBreakDuration     Float?
+  sentenceVarietyScore Float?
+  styleTaggedAt        DateTime?
+
+  totalViews      Int             @default(0)
+  totalEngagement Int             @default(0)
+  compositeScore  Float?
+  performanceTier PerformanceTier @default(TOO_NEW)
+
+  lastComputedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, performanceTier])
+  @@index([userId, postedAt])
+}
+
+model InsightsRun {
+  id     String @id @default(uuid())
+  userId String
+
+  localDate String
+
+  kind    InsightsRunKind
+  trigger NewsRunTrigger    @default(CRON)
+  status  InsightsRunStatus @default(RUNNING)
+  attempt Int               @default(1)
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  postsPolled    Int @default(0)
+  postsFailed    Int @default(0)
+  metricsWritten Int @default(0)
+  scriptsTagged  Int @default(0)
+  scriptsScored  Int @default(0)
+  sampleSize     Int @default(0)
+
+  playbookId String?
+
+  warnings String[]
+  error    String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, localDate, kind])
+  @@index([userId, startedAt])
+}
+
 model AppSettings {
   userId String @id
 
@@ -184,6 +283,7 @@ model Insight {
   finding        String   @db.Text
   recommendation String   @db.Text
   confidence     String
+  runId          String?
   createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -251,6 +351,11 @@ model CampaignProfile {
   topicsPerRun Int     @default(3)
   newsEnabled  Boolean @default(true)
 
+  insightsEnabled Boolean @default(true)
+  metricsRunHour  Int     @default(7)
+  analysisWeekday Int     @default(1)
+  analysisRunHour Int     @default(8)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -280,10 +385,15 @@ model StylePlaybook {
   guidance String  @db.Text
   isActive Boolean @default(true)
 
+  source     StylePlaybookSource @default(MANUAL)
+  sampleSize Int?
+  runId      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
+  @@index([userId, source, isActive])
 }
 
 model NewsClusterHistory {

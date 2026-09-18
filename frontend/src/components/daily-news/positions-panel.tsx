@@ -3,18 +3,17 @@
 import * as React from "react"
 import { Loader2, Plus, Scale, Trash2, Upload } from "lucide-react"
 
+import { PositionFormDialog } from "@/components/daily-news/position-form-dialog"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ListPagination } from "@/components/shared/list-pagination"
 import { SheetImportDialog } from "@/components/shared/sheet-import-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { useAsyncData } from "@/hooks/use-async-data"
+import { usePagination } from "@/hooks/use-pagination"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
 import {
   bulkUpsertPositions,
-  createPosition,
   deletePosition,
   listPositions,
 } from "@/lib/api/news-config"
@@ -25,45 +24,22 @@ import {
 } from "@/lib/utils/parse-news-files"
 import type { CandidatePosition } from "@/lib/types/news-config"
 
+const PAGE_SIZE = 8
+
 export function PositionsPanel() {
   const { notifySuccess, notifyError } = useToastFeedback()
   const { data, isLoading, refetch } = useAsyncData(() => listPositions(), [])
 
-  const [issue, setIssue] = React.useState("")
-  const [stance, setStance] = React.useState("")
-  const [sourceUrl, setSourceUrl] = React.useState("")
-  const [isAdding, setIsAdding] = React.useState(false)
+  const [formOpen, setFormOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
   const [toDelete, setToDelete] = React.useState<CandidatePosition | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
 
   const positions = data?.positions ?? []
-  const canAdd = issue.trim().length > 0 && stance.trim().length > 0
-
-  async function handleAdd(event: React.FormEvent) {
-    event.preventDefault()
-    if (!canAdd || isAdding) return
-
-    setIsAdding(true)
-    try {
-      await createPosition({
-        issue: issue.trim(),
-        stance: stance.trim(),
-        sourceUrl: sourceUrl.trim() || null,
-        sortOrder: positions.length,
-      })
-
-      setIssue("")
-      setStance("")
-      setSourceUrl("")
-      notifySuccess("Position added")
-      await refetch()
-    } catch (caught) {
-      notifyError("Could not add this position", caught)
-    } finally {
-      setIsAdding(false)
-    }
-  }
+  const { page, setPage, totalPages, pageItems } = usePagination(
+    positions,
+    PAGE_SIZE
+  )
 
   async function handleDelete() {
     if (!toDelete) return
@@ -87,7 +63,7 @@ export function PositionsPanel() {
       title="Stated positions"
       description="What the candidate has already said. The selector prefers stories that touch one of these, and the angle writer is told never to contradict them — an angle with no matching position comes back flagged rather than invented."
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {isLoading ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 inline size-4 animate-spin" />
@@ -100,7 +76,7 @@ export function PositionsPanel() {
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">
-            {positions.map((position) => (
+            {pageItems.map((position) => (
               <li
                 key={position.id}
                 className="flex items-start justify-between gap-3 p-3"
@@ -135,57 +111,26 @@ export function PositionsPanel() {
           </ul>
         )}
 
-        <form onSubmit={handleAdd} className="grid gap-3 rounded-lg border p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="position-issue">Issue</Label>
-              <Input
-                id="position-issue"
-                value={issue}
-                onChange={(event) => setIssue(event.target.value)}
-                placeholder="Gas tax"
-              />
-            </div>
+        <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-            <div className="grid gap-2">
-              <Label htmlFor="position-source">Source (optional)</Label>
-              <Input
-                id="position-source"
-                type="url"
-                value={sourceUrl}
-                onChange={(event) => setSourceUrl(event.target.value)}
-                placeholder="https://example.com/positions"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="position-stance">Position</Label>
-            <Textarea
-              id="position-stance"
-              rows={2}
-              value={stance}
-              onChange={(event) => setStance(event.target.value)}
-              placeholder="Opposes gas tax increases and the proposed mileage tax; wants to cut the state gas tax."
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-            >
-              <Upload />
-              Import
-            </Button>
-            <Button type="submit" variant="outline" disabled={!canAdd || isAdding}>
-              {isAdding ? <Loader2 className="animate-spin" /> : <Plus />}
-              Add position
-            </Button>
-          </div>
-        </form>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload />
+            Import
+          </Button>
+          <Button variant="outline" onClick={() => setFormOpen(true)}>
+            <Plus />
+            Add position
+          </Button>
+        </div>
       </div>
+
+      <PositionFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        sortOrder={positions.length}
+        onSaved={() => void refetch()}
+      />
 
       <SheetImportDialog<ParsedPositionRow>
         open={importOpen}

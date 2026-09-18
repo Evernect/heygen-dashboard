@@ -173,9 +173,97 @@ function isSupported(platform) {
   return Object.hasOwn(PUBLISHERS, platform)
 }
 
+function toCount(value) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0
+}
+
+function dryRunMetrics(platformPostId) {
+  let hash = 0
+  for (const character of String(platformPostId)) {
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  }
+
+  const views = 400 + (hash % 2600)
+  const likes = Math.round(views * (0.02 + ((hash >> 3) % 40) / 1000))
+
+  return {
+    views,
+    likes,
+    comments: Math.round(likes * 0.15),
+    shares: Math.round(likes * 0.08),
+  }
+}
+
+async function fetchFacebookMetrics(platformPostId) {
+  if (env.DRY_RUN_META) return dryRunMetrics(platformPostId)
+
+  const [token] = requireEnv("META_PAGE_ACCESS_TOKEN")
+
+  const body = await graphRequest(`/${platformPostId}`, {
+    token,
+    params: {
+      fields:
+        "views,likes.summary(true),comments.summary(true),video_insights.metric(total_video_views)",
+    },
+  })
+
+  let views = toCount(body?.views)
+  if (!views) {
+    const insight = body?.video_insights?.data?.find(
+      (entry) => entry.name === "total_video_views"
+    )
+    views = toCount(insight?.values?.[0]?.value)
+  }
+
+  return {
+    views,
+    likes: toCount(body?.likes?.summary?.total_count),
+    comments: toCount(body?.comments?.summary?.total_count),
+    shares: 0,
+  }
+}
+
+async function fetchInstagramMetrics(platformPostId) {
+  if (env.DRY_RUN_META) return dryRunMetrics(platformPostId)
+
+  const [token] = requireEnv("META_PAGE_ACCESS_TOKEN")
+
+  const body = await graphRequest(`/${platformPostId}/insights`, {
+    token,
+    params: { metric: "views,likes,comments,shares,saved" },
+  })
+
+  const data = Array.isArray(body?.data) ? body.data : []
+  const read = (name) => {
+    const metric = data.find((entry) => entry.name === name)
+    return toCount(metric?.values?.[0]?.value ?? metric?.total_value?.value)
+  }
+
+  return {
+    views: read("views"),
+    likes: read("likes"),
+    comments: read("comments"),
+    shares: read("shares"),
+  }
+}
+
+const METRIC_FETCHERS = {
+  FACEBOOK: fetchFacebookMetrics,
+  INSTAGRAM: fetchInstagramMetrics,
+}
+
+function hasMetrics(platform) {
+  return Object.hasOwn(METRIC_FETCHERS, platform)
+}
+
 module.exports = {
   publishToFacebook,
   publishToInstagram,
   PUBLISHERS,
   isSupported,
+  fetchFacebookMetrics,
+  fetchInstagramMetrics,
+  METRIC_FETCHERS,
+  hasMetrics,
 }

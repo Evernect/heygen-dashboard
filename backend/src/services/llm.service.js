@@ -2,12 +2,12 @@
 
 const { getClient, runStructured } = require("./openai-client")
 const { getSettings } = require("./settings.service")
+const { loadScriptContext } = require("./insights/playbook.service")
 const { HttpError } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 const {
   buildScriptGenerationPrompt,
   buildScriptOutputSchema,
-  variantKeys,
 } = require("./prompts/script-generation.prompt")
 
 const SCRIPT_VARIANT_COUNT = 3
@@ -30,19 +30,19 @@ function toPlatformEnum(platforms) {
   ]
 }
 
-function toScriptRecord(variant, index) {
+function toScriptRecord(output, variant, index) {
   return {
     variantIndex: index,
     variantLabel: variant.label?.trim() || null,
-    title: variant.title,
+    title: output.title,
     scriptText: variant.script,
-    facebookCaption: variant.facebook_caption ?? null,
-    instagramCaption: variant.instagram_caption ?? null,
-    youtubeCaption: variant.youtube_caption ?? null,
-    tiktokCaption: variant.tiktok_caption ?? null,
-    xPostText: variant.x_post_text ?? null,
-    hashtags: Array.isArray(variant.hashtags) ? variant.hashtags : [],
-    targetPlatforms: toPlatformEnum(variant.platforms),
+    facebookCaption: output.facebook_caption ?? null,
+    instagramCaption: output.instagram_caption ?? null,
+    youtubeCaption: output.youtube_caption ?? null,
+    tiktokCaption: output.tiktok_caption ?? null,
+    xPostText: output.x_post_text ?? null,
+    hashtags: Array.isArray(output.hashtags) ? output.hashtags : [],
+    targetPlatforms: toPlatformEnum(output.platforms),
   }
 }
 
@@ -52,7 +52,10 @@ async function generateScriptVariants({
   variantCount = SCRIPT_VARIANT_COUNT,
   userId,
 }) {
-  const settings = await getSettings(userId)
+  const [settings, context] = await Promise.all([
+    getSettings(userId),
+    loadScriptContext(userId),
+  ])
 
   const wordsMin = settings.targetWordsMin
   const wordsMax = settings.targetWordsMax
@@ -63,10 +66,12 @@ async function generateScriptVariants({
     wordsMin,
     wordsMax,
     variantCount,
+    ...context,
   })
 
   logger.info(
-    `Generating ${variantCount} scripts with ${settings.openaiModel} (${wordsMin}-${wordsMax} words) for issue: ${issue.slice(0, 80)}`
+    `Generating ${variantCount} scripts with ${settings.openaiModel} (${wordsMin}-${wordsMax} words)` +
+      `${context.guidanceText ? " using performance guidance" : ""} for issue: ${issue.slice(0, 80)}`
   )
 
   const output = await runStructured({
@@ -78,9 +83,13 @@ async function generateScriptVariants({
     label: "Script generation",
   })
 
-  const variants = variantKeys(variantCount)
-    .map((key) => output[key])
-    .filter((variant) => variant?.title && variant?.script)
+  if (!output.title) {
+    throw new HttpError(502, "Script generation returned no title")
+  }
+
+  const variants = (Array.isArray(output.scripts) ? output.scripts : [])
+    .filter((variant) => variant?.script)
+    .slice(0, variantCount)
 
   if (variants.length === 0) {
     throw new HttpError(502, "Script generation returned no usable scripts")
@@ -92,7 +101,9 @@ async function generateScriptVariants({
     )
   }
 
-  return variants.map(toScriptRecord)
+  return variants.map((variant, index) =>
+    toScriptRecord(output, variant, index)
+  )
 }
 
 async function listModels() {

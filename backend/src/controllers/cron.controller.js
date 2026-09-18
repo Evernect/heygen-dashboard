@@ -2,11 +2,16 @@
 
 const { runDuePublishing } = require("../services/publish-orchestrator")
 const { runDueNewsPipelines } = require("../services/news/news-pipeline.service")
+const {
+  runDueInsightsRuns,
+} = require("../services/insights/insights-pipeline.service")
 const { logger } = require("../utils/logger")
 
 let isRunning = false
 
 let isNewsRunning = false
+
+let isInsightsRunning = false
 
 async function publishDue(req, res) {
   if (isRunning) {
@@ -50,4 +55,25 @@ async function newsDue(req, res) {
   }
 }
 
-module.exports = { publishDue, newsDue }
+async function insightsDue(req, res) {
+  if (isInsightsRunning) {
+    logger.info("Insights tick skipped — previous run still in progress")
+    return res.status(202).json({ status: "skipped", reason: "already running" })
+  }
+
+  isInsightsRunning = true
+  res.status(202).json({ status: "accepted" })
+
+  try {
+    const result = await runDueInsightsRuns()
+    if (result.considered > 0) {
+      logger.info(`Insights tick finished (${result.ran} run(s))`)
+    }
+  } catch (error) {
+    logger.error("Insights tick failed", error)
+  } finally {
+    isInsightsRunning = false
+  }
+}
+
+module.exports = { publishDue, newsDue, insightsDue }

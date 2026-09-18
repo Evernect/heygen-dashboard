@@ -101,8 +101,6 @@ export function HeygenConnectionPanel({
             </Badge>
           </ItemTitle>
 
-          {/* HeyGen's `username` is an opaque account id, not a display name,
-              so it is only worth showing when there is no email to show. */}
           <ItemDescription className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <span className="flex items-center gap-1 font-mono text-[11px]">
               <KeyRound className="size-3" />

@@ -33,7 +33,7 @@ async function loadPositionsBlock(userId) {
 
 async function loadGuidance(userId) {
   const latest = await prisma.stylePlaybook.findFirst({
-    where: { userId, isActive: true },
+    where: { userId, isActive: true, source: "MANUAL" },
     orderBy: { createdAt: "desc" },
     select: { guidance: true },
   })

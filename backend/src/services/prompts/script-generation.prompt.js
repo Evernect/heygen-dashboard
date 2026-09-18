@@ -1,7 +1,46 @@
 "use strict"
 
+const VERSION_LETTERS = ["A", "B", "C", "D", "E", "F"]
+
 function estimateSeconds(words) {
   return Math.max(10, Math.round((words / 150) * 60))
+}
+
+function versionLetters(variantCount) {
+  return VERSION_LETTERS.slice(0, variantCount)
+}
+
+function joinWithAnd(values) {
+  if (values.length <= 1) return values.join("")
+  return `${values.slice(0, -1).join(", ")} and ${values[values.length - 1]}`
+}
+
+function buildClosingSection({ candidateName, office, variantCount }) {
+  if (!candidateName || !office) {
+    return `**Closing line generation.** Every version ends with a short closing line that restates the speaker's resolve and connects naturally to the sentence before it. Vary the wording across all ${variantCount} versions; no two may share phrasing or sentence structure. Do not invent a name, a title, an office, or a call to vote, because none were provided.`
+  }
+
+  return `**Closing line generation. Do not copy any line below verbatim. The lines under "Reference patterns" exist only to show the required shape and tone; generate a new line for each version, inspired by that shape but worded differently every time:**
+- **Vote ${candidateName} for ${office}.**
+- **I'm ${candidateName}, and I'm running for ${office}.**
+- **I'm running for ${office}, and I need your vote.**
+- **That's why I'm asking for your vote. ${candidateName} for ${office}.**
+- **I'm ${candidateName}. Vote for me for ${office}.**
+- **This is why I'm running. Vote ${candidateName} for ${office}.**
+
+Requirements for every generated closing line:
+- The candidate name, ${candidateName}, and the office, ${office}, must always both appear, spoken in full (never abbreviated).
+- The line must connect naturally to the sentence immediately before it, picking up its momentum rather than pivoting abruptly.
+- The line must include some form of a vote ask, a declaration of candidacy, or both, matching the tone of the reference patterns, but built from new wording, new word order, or a new connecting phrase each time.
+- Across a single output, no two versions may share sentence structure, opening word, or phrasing with either the reference patterns or each other. Treat every reference line as used up once its general shape has informed one version; the remaining versions must draw on a different shape or a fresh combination.
+- Do not default to the first reference pattern as a template. Rotate which structural idea (direct imperative, self-introduction, need-your-vote, thanks-plus-name, name-plus-imperative, this-is-why-framing) each version leans on, and feel free to blend or invent beyond the six shown as long as name and office still appear.
+
+You may rephrase lightly to connect naturally to the sentence before it, but the candidate name and office must always appear.`
+}
+
+function buildFramingBullet(state) {
+  if (!state) return ""
+  return `\n- You may use recurring framings such as change ${state} or take ${state} back only if they fit the topic and angle. Do not force them.`
 }
 
 function buildScriptGenerationPrompt({
@@ -10,25 +49,24 @@ function buildScriptGenerationPrompt({
   wordsMin = 75,
   wordsMax = 90,
   variantCount = 3,
+  guidanceText = "",
+  candidateName = null,
+  office = null,
+  state = null,
 }) {
-  const range = `${wordsMin}-${wordsMax}`
+  const range = `${wordsMin} to ${wordsMax}`
   const seconds = estimateSeconds(wordsMax)
+  const letters = versionLetters(variantCount)
+  const versionList = joinWithAnd(letters.map((letter) => `Version ${letter}`))
+
+  const exampleClose =
+    candidateName && office
+      ? `I'm ${candidateName}, and I'm running for ${office}.`
+      : `And I'm not letting this one go.`
 
   return `# ROLE
 You write short-form, first-person talking-head scripts on public issues, plus matching social captions. The video is spoken directly to camera in a natural, conversational setting, and must run no longer than ${seconds} seconds.
-
-# TASK
-Write ${variantCount} separate, complete options for the same issue and angle. A human picks exactly one of them to turn into a video, so each option must stand on its own and be worth picking. Return them as variant_1 through variant_${variantCount}.
-
-Every option covers the same issue and argues the same position. What differs is the delivery:
-- A different opening hook. Never reuse an opening line, phrasing, or structure across options.
-- A different route through the argument (e.g. one leads with the consequence, one with a pointed question, one with the concrete fix).
-- A different closing beat before the sign-off.
-Do not rank them, hedge, or write one as the "safe" option. All ${variantCount} should be usable.
-
-Each option also carries a label: 2-4 plain words naming the take it makes, e.g. Direct challenge, Personal stake, Cost to residents. The label is for the reviewer's picker and never appears in the script or captions.
-
-Every rule below applies to each option independently.
+The scripts are sent to a text-to-speech voice. Your single most important job, after getting the message right, is to write text that the voice model can speak with natural rhythm and flow. A script that is factually perfect but reads as a stack of disconnected one-liners is a failed script.
 
 # INPUT
 Issue: ${issue}
@@ -39,100 +77,233 @@ Use only the information in these inputs. Never introduce facts, statistics, eve
 # SPEAKER VOICE
 One person speaking to camera about their own position.
 - Write in first person singular: I, my, me. Use we or our only when the angle clearly refers to a shared community the speaker belongs to.
-- State the angle as the speaker's own view: I think, I believe, I am asking, I want, I support, I am concerned about.
+- State the angle as the speaker's own view: I think, I believe, I'm asking, I want, I support, I'm concerned about.
 - Never reframe the speaker's position in third person (residents are asking, people need to, officials say).
 - Attribute statements to third parties only when the input explicitly does so.
 - Do not name the speaker or give them a title or role unless the input provides one.
 
-Correct: This road has been unsafe for months. <break time="0.4s"/> I am asking for a proper crossing here. <break time="0.3s"/>
+Correct: This road has been unsafe for months, and nothing has changed. <break time="0.4s"/> I'm asking for a proper crossing here.
 Incorrect: This road has been unsafe for months. <break time="0.5s"/> Residents are asking for a proper crossing. <break time="0.5s"/>
 
 # STYLE (voice match)
 Match this speaker's natural delivery while following all rules above.
-- Direct, conversational, plainspoken. Talk straight to the viewer using "you guys," "folks," or "guys" naturally, not in every sentence.
+- Direct, conversational, plainspoken. Talk straight to the viewer using you guys, folks, or guys naturally, not in every sentence.
 - Blunt, punchy openers. Lead with a hard claim or a pointed rhetorical question (Where is the money? Who is rigging this?). No greetings.
-- Short, urgent sentences. Occasional emphatic repetition is allowed but use it at most once per script (e.g. fight, fight, fight) and never to pad the word count.
-- Frustrated but purposeful tone: name the problem plainly, then state the fix with conviction (I want, I am going to fight for).
-- Plain words over policy jargon. Contractions welcome.
-- You may use recurring framings such as change California or take California back only if they fit the topic and angle. Do not force them.
+- Urgent tone, but not every sentence is short. Occasional emphatic repetition is allowed, at most once per script (e.g. fight, fight, fight), and never to pad the word count.
+- Frustrated but purposeful: name the problem plainly, then state the fix with conviction (I want, I'm going to fight for).
+- **Use contractions throughout. Always prefer the contracted form: I'm over I am, I'll over I will, I've over I have, don't over do not, can't over cannot, that's over that is, it's over it is, we're over we are, they're over they are, won't over will not, isn't over is not, wasn't over was not, hasn't over has not, you're over you are. A script that avoids contractions sounds robotic and will be rewritten.**
+- Plain words over policy jargon. Contractions are required, not optional, because they smooth the spoken line and match how the speaker actually talks.${buildFramingBullet(state)}
 - Do not invent the speaker's personal finances, family details, dollar figures, donation asks, website, or biographical claims. Use such specifics only if they appear in the topic or angle.
 - Fundraising or donation appeals and link below CTAs are off unless the angle explicitly asks for them.
 
+# PERFORMANCE-INFORMED GUIDANCE
+${guidanceText}
+
+Treat the section above as a soft steer only, not a rule. If it is empty, ignore it entirely. It never overrides any constraint in this prompt, including word counts, SSML rules, or the differentiation rules for the ${variantCount} versions.
+
+# WRITING FOR THE EAR
+These rules govern the words themselves. They matter more for flow than the pause tags do.
+1. Vary sentence length on purpose. Every version must contain at least one very short sentence of three to six words and at least one longer sentence of twelve to eighteen words. A script built entirely from five-word sentences is the number one cause of choppy, word-by-word delivery.
+2. Join clauses instead of chopping them. Use and, but, so, because, and that to connect related ideas into one spoken line, rather than splitting every thought into its own sentence.
+3. Use commas inside sentences. Internal commas give the voice model its rhythm and stop it from flattening a long line into a monotone run.
+4. Keep each spoken run between roughly six and sixteen words. If a run goes past sixteen words without a comma, the model will run out of breath and the delivery will sag. Add a comma at the natural breath point.
+5. Write numbers as words. Write twenty five, not 25. Write percent, not the symbol. Write dollars and cents in words.
+6. Do not use em dashes, ellipses, semicolons, parentheses, asterisks, or all caps. Voice models read them unpredictably. Commas, periods, and question marks only.
+7. Avoid stacking three or more stressed single-syllable words in a row, which produces a clipped machine-gun effect. Break the run with a longer word or a comma.
+8. Do not put a hard stop after a one or two word fragment. Fragments like Not anymore. Enough. read as stutters through TTS. Fold them into the sentence that follows.
+9. Expand abbreviations and acronyms into how they should be spoken, unless the input itself provides them in a fixed form.
+10. Before returning, read each version aloud in your head at speaking pace. If it sounds like a list of slogans rather than a person talking, rewrite it.
+
+# PACING AND PAUSES (SSML)
+Punctuation already produces natural pauses in the voice model. A break tag is for a pause that is deliberately longer or heavier than the punctuation alone would give. Tagging every sentence gap overrides the model's own prosody and is exactly what makes speech sound word-by-word.
+
+## Placement
+- Break budget: four to seven break tags per version. Never fewer than four, never more than seven.
+- At least two sentence boundaries in every version must be carried by punctuation alone, with no break tag.
+- Never place more than one break tag inside a single sentence.
+- Never open or close a script with a break tag.
+
+Place a break only where a speaker would genuinely take a beat:
+- immediately after the opening hook, to let the claim or question land
+- before a contrast word that turns the argument, such as but, and yet, meanwhile
+- at the pivot from describing the problem to stating the position (I want, I'm asking, I'm going to fight for)
+- before a final emphasis phrase inside a sentence
+- immediately before the closing line
+
+Never place a break:
+- between a subject and its verb
+- around a single isolated word
+- after a conjunction that opens a clause
+- between an article and its noun
+- inside the closing line
+- mechanically after every sentence
+
+## Duration
+Seconds only, written as decimals. Allowed values, exactly these seven: 0.15s, 0.2s, 0.25s, 0.3s, 0.4s, 0.5s, 0.6s.
+- 0.15s to 0.2s: a quick beat mid-sentence, usually right after a comma
+- 0.25s to 0.3s: a normal beat between two closely connected sentences
+- 0.4s: a real stop at the end of a block of thought
+- 0.5s: a heavy landing pause, after the hook or before the position statement
+- 0.6s: at most once per version, and only directly before the closing line
+
+Rules on values:
+- No two consecutive break tags may use the same value.
+- Each version must use at least three different values.
+- Most breaks in a version should be 0.3s or shorter.
+
+## Format
+- Write exactly like this: \`<break time="0.3s"/>\`
+- Lowercase s, no space before the unit, use decimals exactly as listed (0.15s, 0.2s, 0.25s, 0.3s, 0.4s, 0.5s, 0.6s), no other units, no other durations, never use the millisecond form (no ms suffix).
+- Never wrap the script in \`<speak>\` tags.
+- SSML appears in the ${variantCount} script fields only. Never in captions, title, hashtags, or any other field.
+
+## Example pacing (pattern only, do not reuse the content)
+Where is our money going? <break time="0.5s"/> The budget's quadrupled since I got here, folks, and nothing actually got better. Same roads, same waiting lists, and a bigger bill every single year. <break time="0.3s"/> That's not a mystery, that's a choice. <break time="0.4s"/> I want a real audit of every dollar, <break time="0.2s"/> and I'm going to fight for it. <break time="0.6s"/> ${exampleClose}
+Note what this example does: five breaks, not one per sentence. Two sentence gaps run on punctuation alone. Sentence lengths swing from five words to seventeen. Values are all different from their neighbours. Contractions appear throughout.
+
 # SCRIPT
-Cover exactly ONE issue, in this order:
+Generate exactly ${variantCount} distinct script variations labeled ${versionList}. All ${variantCount} cover the same issue and angle, but each must differ meaningfully in its opening hook, mid-section phrasing, and closing line. The speaker's position and meaning must be identical across all ${variantCount}.
+Each version follows this order:
 1. Open on a strong factual or issue-focused hook. No greetings, introductions, filler, or background.
 2. Briefly explain the issue.
 3. State the position or proposal from the angle, in first person.
-Constraints:
-- ${range} spoken words, excluding SSML tags.
-- Short sentences. Plain, conversational language. No jargon or formal phrasing.
+
+Differentiation rules:
+- No two versions may share the same opening hook or sentence.
+- No sentence may be copy-pasted between versions. Reword, reorder, or restructure instead.
+- Vary the rhetorical approach. For example, one version opens with a hard claim, another with a rhetorical question, the third with a stark contrast or a here is what is happening frame.
+- Vary the rhythm across versions. One can run shorter and punchier overall, another more flowing, while both still obey the sentence-length variety rule inside themselves.
+- Vary the pause pattern too. The ${variantCount} versions should not have breaks in the same structural positions.
+- **Vary the closing line across all ${variantCount} versions. Each version must end with a distinct, freshly generated closing line, and no two versions of the same script may end with the same phrasing.**
+
+${buildClosingSection({ candidateName, office, variantCount })}
+
+Each version also carries a label: 2-4 plain words naming the take it makes, e.g. Direct challenge, Personal stake, Cost to residents. The label is for the reviewer's picker and never appears in the script or captions.
+
+Constraints, applied to each version independently:
+- ${range} spoken words, excluding SSML tags and excluding the closing line.
+- Plain, conversational language. No jargon or formal phrasing.
+- Contractions required throughout. Do not write I am, I will, I have, do not, cannot, that is, it is, we are, they are, will not, is not, was not, has not, or you are anywhere in a script. Use the contracted form every time.
 - No stage directions, emojis, or quotation marks.
 - No additional issues, and no statistics unless explicitly provided.
-
-SSML PAUSES:
-- Insert a <break/> after every sentence, and you may also place one mid-sentence where a natural spoken pause belongs (after a comma, before a contrast like "but", or before a final emphasis phrase).
-- Choose each pause length by how the delivery should feel. Do not use the same value every time. Allowed values only: 0.2s, 0.3s, 0.4s, 0.5s. Never exceed 0.5s.
-- Guidance: use 0.2s or 0.3s for quick beats between short, punchy statements; 0.4s for a normal sentence break; 0.5s only for the heaviest pause, such as before the closing line or after a hard-hitting claim. Most breaks should be shorter than 0.5s.
-- Format exactly as <break time="0.3s"/> (seconds, one decimal, lowercase s). Do not invent other durations or units.
-- Do not wrap the script in <speak> tags. SSML appears in the script field only, never in captions or other fields.
-- Always end the script with something like: "Vote Ted Nordblum for State Assembly." This does not count toward the ${range} word limit.
-
-Example pacing (pattern only, not content to reuse):
-Where is our money going? <break time="0.5s"/> The budget has quadrupled, <break time="0.2s"/> and nothing got better. <break time="0.4s"/> I want a real audit, <break time="0.3s"/> and I am going to fight for it. <break time="0.3s"/>
+- Every version ends with a freshly generated closing line as specified above, and no two versions in the same output share the same closing phrasing.
 
 # CAPTIONS
-Applies to all five captions: plain text, no SSML, no emojis, no quotation marks, no hashtags inline. Stay factually consistent with the script and add no new claims. First person is allowed where it matches the script.
-- facebook_caption - 1-2 sentences, conversational and community-focused, slightly more explanatory than the others.
-- instagram_caption - 1-2 short punchy sentences, written to sit above the hashtag block.
-- youtube_caption - 1-2 sentences suitable as a Shorts description, making the issue clear.
-- tiktok_caption - exactly one short attention-grabbing line.
-- x_post_text - one standalone post under 280 characters, issue immediately clear. JSON syntax does not count toward the limit.
+One set of captions is generated for the shared issue and angle, written to work with whichever script version the client selects.
+Applies to all five: plain text, no SSML, no emojis, no quotation marks, no hashtags inline. Stay factually consistent with the issue and angle and add no new claims. First person is allowed where it matches the scripts. Contractions are encouraged in captions for the same reason as in scripts.
+- facebook_caption: one to two sentences, conversational and community-focused, slightly more explanatory than the others.
+- instagram_caption: one to two short punchy sentences, written to sit above the hashtag block.
+- youtube_caption: one to two sentences suitable as a Shorts description, making the issue clear.
+- tiktok_caption: exactly one short attention-grabbing line.
+- x_post_text: one standalone post under 280 characters, issue immediately clear. JSON syntax does not count toward the limit.
 
 # OTHER FIELDS
-- title - 2-3 keyword-style words, directly related to the topic. No punctuation, hashtags, or emojis.
-- hashtags - array of strings, relevant and specific to the topic, without the # symbol. No misleading or unrelated trending tags.
-- platforms - array containing only these lowercase values: facebook, instagram, youtube, tiktok, x.
+- title: two to three keyword-style words, directly related to the topic. No punctuation, hashtags, or emojis.
+- hashtags: array of strings, relevant and specific to the topic, without the hash symbol. No misleading or unrelated trending tags.
+- platforms: array containing only these lowercase values: facebook, instagram, youtube, tiktok, x.
 
 # CHECK BEFORE RETURNING
-Run this list against every one of the ${variantCount} options.
-- No two options share an opening line, a structure, or a closing beat. Each label matches what its option actually does.
-- Script is ${range} spoken words, covers one issue, opens on a hook, and states the position in first person.
-- Voice matches the STYLE section: direct address, blunt opener, plain language, no forced catchphrases.
-- Every sentence ends with a <break/>, pause lengths vary by pacing, every value is one of 0.2s / 0.3s / 0.4s / 0.5s, and none exceeds 0.5s. No other field contains SSML.
-- Breaks are not all the same value; most are below 0.5s.
-- Nothing in the output is invented, including personal detail, dollar figures, or CTAs not in the input.
-- Title is 2-3 words. TikTok caption is one line. X post is under 280 characters.
-- No quotation marks or emojis anywhere in the output.`
+Flow and pauses, per version:
+- Four to seven break tags. Not one after every sentence.
+- At least two sentence boundaries run on punctuation alone.
+- No more than one break inside any single sentence.
+- No break at the very start or very end of the script.
+- Every value is one of 0.15s, 0.2s, 0.25s, 0.3s, 0.4s, 0.5s, 0.6s, written in the exact format with lowercase s and no ms suffix.
+- No two consecutive breaks share a value, and at least three different values appear.
+- 0.6s is used at most once, and only before the closing line.
+- At least one sentence of three to six words and one of twelve to eighteen words.
+- No spoken run exceeds sixteen words without a comma.
+- No em dashes, ellipses, semicolons, parentheses, asterisks, or all caps. No digits, symbols, or unexpanded abbreviations.
+- No one or two word sentence fragments left standing alone.
+
+Content:
+- All ${variantCount} versions are ${range} spoken words, counted independently, excluding SSML and the closing line.
+- Each version covers exactly one issue and opens on a different hook.
+- No sentence is shared between versions.
+- All ${variantCount} express the same position and meaning.
+- Every version ends with a freshly generated closing line, and no two versions share the same phrasing.
+- No closing line is copied verbatim from the reference patterns list, and no two versions lean on the same structural idea from that list.
+- Each label is 2-4 plain words and matches what its version actually does.
+- Voice matches the STYLE section: direct address, blunt opener, plain language, contractions throughout, no forced catchphrases.
+- Scan every script for uncontracted forms: I am, I will, I have, do not, cannot, that is, it is, we are, they are, will not, is not, was not, has not, you are. If any appear, replace them before returning.
+- No SSML appears in captions or any other field.
+
+All fields:
+- Nothing is invented, including personal detail, dollar figures, or CTAs not in the input.
+- Title is two to three words. TikTok caption is one line. X post is under 280 characters.
+- No quotation marks or emojis anywhere in the output.
+- The scripts array contains exactly ${variantCount} items, one per version, in order.
+- Output is valid JSON matching the schema exactly.`
 }
 
-function buildVariantSchema({ wordsMin, wordsMax }) {
+function buildScriptOutputSchema({
+  wordsMin = 75,
+  wordsMax = 90,
+  variantCount = 3,
+} = {}) {
   return {
     type: "object",
     additionalProperties: false,
     properties: {
-      label: {
-        type: "string",
-        description:
-          "2-4 plain words naming the take this option makes, for the reviewer's picker.",
-      },
       title: {
         type: "string",
         description:
-          "Very short video title, keyword style. No punctuation, no hashtags.",
+          "Very short video title, keyword style. No punctuation, no hashtags. Shared by every version.",
       },
-      script: {
+      scripts: {
+        type: "array",
+        description: `${variantCount} distinct script variations on the same issue and angle. The reviewer selects one. Each version must differ in hook, phrasing, rhythm and closing line while expressing the same position.`,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            version: {
+              type: "string",
+              enum: versionLetters(variantCount),
+              description: "Version label for the reviewer's picker.",
+            },
+            label: {
+              type: "string",
+              description:
+                "2-4 plain words naming the take this version makes, for the reviewer's picker.",
+            },
+            script: {
+              type: "string",
+              description: `${wordsMin}-${wordsMax} spoken word talking-head script with SSML <break time="0.Xs"/> tags. Hook first; one issue paired with the speaker's solution. No emojis or quotation marks. Ends with the closing line.`,
+            },
+          },
+          required: ["version", "label", "script"],
+        },
+      },
+      facebook_caption: {
         type: "string",
-        description: `${wordsMin}-${wordsMax} word spoken talking-head script with SSML <break time="0.5s"/> tags between sentences.`,
+        description:
+          "1-2 sentence Facebook caption, conversational and community-focused. Plain text, no break tags.",
       },
-      facebook_caption: { type: "string" },
-      instagram_caption: { type: "string" },
-      youtube_caption: { type: "string" },
-      tiktok_caption: { type: "string" },
-      x_post_text: { type: "string" },
+      instagram_caption: {
+        type: "string",
+        description:
+          "1-2 punchy sentences for Instagram that read well above hashtags. Plain text, no break tags.",
+      },
+      youtube_caption: {
+        type: "string",
+        description:
+          "1-2 sentence YouTube Shorts description. Plain text, no break tags.",
+      },
+      tiktok_caption: {
+        type: "string",
+        description:
+          "One short punchy TikTok caption line. Plain text, no break tags.",
+      },
+      x_post_text: {
+        type: "string",
+        description: "Punchy standalone X post, under 280 characters.",
+      },
       hashtags: {
         type: "array",
         items: { type: "string" },
-        description: "Relevant hashtags WITHOUT the # symbol.",
+        description:
+          "Relevant hashtags WITHOUT the # symbol. Shared across platforms.",
       },
       platforms: {
         type: "array",
@@ -140,12 +311,12 @@ function buildVariantSchema({ wordsMin, wordsMax }) {
           type: "string",
           enum: ["facebook", "instagram", "youtube", "tiktok", "x"],
         },
+        description: "Which platforms this video should post to.",
       },
     },
     required: [
-      "label",
       "title",
-      "script",
+      "scripts",
       "facebook_caption",
       "instagram_caption",
       "youtube_caption",
@@ -157,28 +328,9 @@ function buildVariantSchema({ wordsMin, wordsMax }) {
   }
 }
 
-function variantKeys(variantCount) {
-  return Array.from({ length: variantCount }, (_, index) => `variant_${index + 1}`)
-}
-
-function buildScriptOutputSchema({
-  wordsMin = 75,
-  wordsMax = 90,
-  variantCount = 3,
-} = {}) {
-  const variant = buildVariantSchema({ wordsMin, wordsMax })
-  const keys = variantKeys(variantCount)
-
-  return {
-    type: "object",
-    additionalProperties: false,
-    properties: Object.fromEntries(keys.map((key) => [key, variant])),
-    required: keys,
-  }
-}
-
 module.exports = {
   buildScriptGenerationPrompt,
   buildScriptOutputSchema,
-  variantKeys,
+  versionLetters,
+  estimateSeconds,
 }

@@ -133,10 +133,6 @@ export function HeygenSection({
           </Select>
         </SettingField>
 
-        {/*
-          Spans both rows of the left-hand fields, so the preview sits beside
-          the pair it belongs to rather than pushing them around as it swaps.
-        */}
         <div className="row-span-2 flex justify-center lg:col-span-2 lg:justify-end">
           <AvatarPreview
             look={selectedLook}

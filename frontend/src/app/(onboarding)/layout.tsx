@@ -19,8 +19,6 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
 
         <div className="flex items-center gap-2">
           <ModeToggle />
-          {/* Signing out has to stay reachable: this screen is a gate, and a
-              gate with no way back is a trap. */}
           {user && <UserMenu user={user} />}
         </div>
       </header>

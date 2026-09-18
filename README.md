@@ -78,9 +78,14 @@ needs to stay open for a post to go out.
    directory in there as a migration it should apply, and this file is meant to
    be run by hand against Supabase instead.
 
-That file registers two jobs: `publish-due` every minute, and `daily-news` every
-hour. Both carry an `x-cron-secret` header. Verification queries (did it fire?
-what did the backend answer?) are at the bottom of the SQL file.
+That file registers three jobs: `publish-due` every minute, and `daily-news` and
+`insights-due` every hour. All carry an `x-cron-secret` header. Verification
+queries (did it fire? what did the backend answer?) are at the bottom of the SQL
+file.
+
+`insights-due` covers both halves of the feedback loop — the daily engagement
+sync and the weekly style review — and runs hourly for the same reason the news
+job does.
 
 ### Why the news job runs hourly
 
@@ -234,6 +239,71 @@ and would defeat the key for part of every year.
 Forcing a re-run reopens that day's record and clears what the previous attempt
 logged, so the week's repeat check is not poisoned by the pipeline's own output.
 
+## The performance feedback loop
+
+Published videos feed back into the scripts that come after them. Two scheduled
+runs, both per-tenant and both on `/insights`:
+
+**Daily — engagement sync.** Reads views, likes, comments and shares off every
+Facebook and Instagram post from the last thirty days and **appends** a
+`VideoMetric` row per reading. Appending rather than overwriting is what turns
+the table into an engagement time series for free, since the read path already
+takes the newest row per post. It then re-scores every posted video and style-tags
+any that have newly settled.
+
+**Weekly — style review.** Asks what separates the top third from the bottom
+third, and writes the answer as a new `StylePlaybook` version plus one `Insight`
+row per pattern.
+
+### Scoring
+
+A video's engagement rate is z-scored **within its own platform**, because a rate
+that is ordinary on Instagram may be excellent on Facebook. Its composite is the
+mean of its per-platform z-scores, so posting to one platform is not penalised
+against posting to two. Tiers are percentile bands over that ranking — top third,
+middle, bottom third — not absolute thresholds.
+
+Videos live for fewer than three days are held out of the mean, the standard
+deviation and the tier split entirely. They are still measured and displayed,
+marked `TOO_NEW`; they just cannot drag the baseline around while their numbers
+are still moving.
+
+### Style tags are measured, not asked for
+
+Break count, average pause duration, hook word count and sentence variety are
+extracted with a regex over the script text. Only `hookType`, a four-way
+classification, goes to the model, batched across scripts. A model asked to count
+`<break/>` tags will sometimes miscount, and these numbers are the evidence the
+weekly review reasons over — they need to be exact.
+
+Tagging happens once per script. The text never changes after posting, so there
+is nothing to re-read.
+
+### Guidance reaches the script writer, not the angle writer
+
+`StylePlaybook.isActive` is **per source**. The newest version of either source
+is injected into the script generation prompt under
+`# PERFORMANCE-INFORMED GUIDANCE`; the daily news angle writer reads the newest
+`MANUAL` one only.
+
+That split is deliberate. The review measures hooks, pause placement and outro
+lead-ins — all things the script writer controls and the angle writer does not.
+Handing "favour rhetorical-question hooks" to the thing that picks which story to
+cover would be applying the evidence outside its range. Creating an entry
+deactivates only same-source entries, so the two tracks never clobber each other.
+
+The guidance is a soft steer: the prompt states that it never overrides a word
+count, an SSML rule or the differentiation rules, which is what stops a bad
+version talking the model out of its constraints.
+
+### It says so when it does not know
+
+Below fifteen settled videos the review returns empty and writes no guidance —
+the script prompt keeps whatever it had. A pattern needs at least five videos
+sharing a value before it can be asserted at all. With a handful of videos every
+z-score is near zero and any "finding" would be noise; the sample gate is what
+stops that being read as signal.
+
 ## Connecting HeyGen
 
 Rendering runs on the signed-in user's own HeyGen account, not a shared
@@ -357,6 +427,11 @@ shared secret instead.
 | `GET` | `/api/settings/heygen/avatar-looks` | Looks, filterable by `?groupId=` |
 | `GET` | `/api/metrics/summary` | Aggregates for the Insights screen |
 | `GET` | `/api/insights` | LLM recommendations |
+| `GET` | `/api/insights/performance` | Per-video style and score (`?tier=`, `?page=`) |
+| `GET` | `/api/insights/runs` | Recent metrics and analysis runs |
+| `GET` | `/api/insights/runs/latest` | Latest run of each kind, plus the guidance in use |
+| `POST` | `/api/insights/run` | `{ kind: METRICS \| ANALYSIS, force }` |
+| `POST` | `/api/cron/insights-due` | Feedback-loop webhook (`x-cron-secret`) |
 
 ## Script statuses
 
@@ -378,8 +453,12 @@ selectable, so another one can be rendered in its place.
 - Only **Facebook** and **Instagram** publish. YouTube, TikTok and X can be
   selected - the captions are generated - but the pipeline records them as
   unimplemented rather than posting. This matches the original n8n workflow.
-- Metrics collection and the LLM insight analysis are not wired up yet; the
-  Insights screen reads real data and shows an empty state until they are.
+- Facebook reports no share count on a video node, so `shares` is always `0` for
+  Facebook and its engagement rate is understated by exactly that. Reading it
+  would need a second Graph hop to resolve the video's page post.
+- The style review needs **fifteen** videos live for **three days or more**
+  before it will assert anything. Below that it records the run and returns
+  nothing, which is the intended answer rather than a failure.
 - Meta credentials are still deployment-wide: `FACEBOOK_PAGE_ID`,
   `INSTAGRAM_BUSINESS_ACCOUNT_ID` and `META_PAGE_ACCESS_TOKEN` come from the
   environment, so every tenant publishes to the same pages. Integrations shows

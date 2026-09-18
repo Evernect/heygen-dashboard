@@ -44,11 +44,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
           <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
-        {/*
-          Called through a transition rather than a nested <form>: a form
-          inside the menu's portal is torn down as the menu closes, which
-          leaves the server action's redirect with nowhere to land.
-        */}
         <DropdownMenuItem
           disabled={pending}
           onClick={() =>

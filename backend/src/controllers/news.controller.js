@@ -279,11 +279,11 @@ async function createPlaybookEntry(req, res) {
 
   const [, entry] = await prisma.$transaction([
     prisma.stylePlaybook.updateMany({
-      where: { userId, isActive: true },
+      where: { userId, isActive: true, source: "MANUAL" },
       data: { isActive: false },
     }),
     prisma.stylePlaybook.create({
-      data: { ...req.body, userId, isActive: true },
+      data: { ...req.body, userId, source: "MANUAL", isActive: true },
     }),
   ])
 

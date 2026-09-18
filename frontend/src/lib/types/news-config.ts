@@ -73,11 +73,16 @@ export interface CreatePositionInput {
 
 export type UpdatePositionInput = Partial<CreatePositionInput>
 
+export type StylePlaybookSource = "MANUAL" | "GENERATED"
+
 export interface StylePlaybookEntry {
   id: string
   label: string | null
   guidance: string
   isActive: boolean
+  source: StylePlaybookSource
+  sampleSize: number | null
+  runId: string | null
   createdAt: string
   updatedAt: string
 }

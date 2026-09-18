@@ -135,7 +135,11 @@ export function RunStatusStrip({ onFinished }: { onFinished: () => void }) {
             anything.
           </p>
         </div>
-        <Button render={<Link href="/daily-news/setup" />} variant="brand">
+        <Button
+          render={<Link href="/daily-news/setup" />}
+          variant="brand"
+          nativeButton={false}
+        >
           <Settings2 />
           Set up
         </Button>
@@ -191,6 +195,7 @@ export function RunStatusStrip({ onFinished }: { onFinished: () => void }) {
           render={<Link href="/daily-news/setup" />}
           variant="outline"
           size="sm"
+          nativeButton={false}
         >
           <Settings2 />
           Sources

@@ -104,8 +104,6 @@ export function ScriptOptionsGrid({
                 value={group.topicId}
                 className="not-last:border-b"
               >
-                {/* Padding lives on the trigger/panel, not the item: the panel
-                    clips at its own edge and would shave the chosen card's ring. */}
                 <AccordionTrigger className="gap-4 px-4 py-3 hover:no-underline">
                   <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1">
                     <div className="min-w-0 space-y-0.5">

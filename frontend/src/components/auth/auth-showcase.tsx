@@ -41,8 +41,6 @@ export function AuthShowcase() {
             your channels on a schedule you approve.
           </p>
 
-          {/* Needs roughly 300px of its own; below that the panel reads fine
-              without it, so it is dropped rather than squeezed. */}
           <ol className="mt-7 hidden space-y-2 [@media(min-height:760px)]:block">
             {PIPELINE_STAGES.map(({ title, icon: Icon }, index) => (
               <li key={title} className="flex items-center gap-3">

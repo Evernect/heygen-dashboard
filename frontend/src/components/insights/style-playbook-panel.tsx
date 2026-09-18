@@ -1,16 +1,18 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, MessageSquareQuote, Plus, Trash2 } from "lucide-react"
+import { Loader2, MessageSquareQuote, Plus, Sparkles, Trash2 } from "lucide-react"
 
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ListPagination } from "@/components/shared/list-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAsyncData } from "@/hooks/use-async-data"
+import { usePagination } from "@/hooks/use-pagination"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
 import {
   createStylePlaybookEntry,
@@ -20,11 +22,13 @@ import {
 import { formatRelative } from "@/lib/format"
 import type { StylePlaybookEntry } from "@/lib/types/news-config"
 
-export function StylePlaybookPanel() {
+const PAGE_SIZE = 6
+
+export function StylePlaybookPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const { notifySuccess, notifyError } = useToastFeedback()
   const { data, isLoading, refetch } = useAsyncData(
     () => listStylePlaybook(),
-    []
+    [refreshKey]
   )
 
   const [label, setLabel] = React.useState("")
@@ -34,6 +38,11 @@ export function StylePlaybookPanel() {
   const [isDeleting, setIsDeleting] = React.useState(false)
 
   const entries = data?.entries ?? []
+  const { page, setPage, totalPages, pageItems } = usePagination(
+    entries,
+    PAGE_SIZE
+  )
+
   const canAdd = guidance.trim().length > 0
 
   async function handleAdd(event: React.FormEvent) {
@@ -78,7 +87,7 @@ export function StylePlaybookPanel() {
     <SettingsSection
       icon={MessageSquareQuote}
       title="Voice guidance"
-      description="Notes on what has been working, handed to the angle writer verbatim. Adding a new version supersedes the last one; the older ones are kept so you can see what changed."
+      description="What the script writer is told about pacing and phrasing. The weekly style review writes a version from published performance; you can also write one by hand. The newest version is the one in use, and the older ones are kept so you can see what changed."
     >
       <div className="space-y-4">
         {isLoading ? (
@@ -88,12 +97,12 @@ export function StylePlaybookPanel() {
           </p>
         ) : entries.length === 0 ? (
           <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-            No guidance yet. The angle writer will work from the stated
-            positions and the content bank alone.
+            No guidance yet. The style review writes the first version once
+            enough videos have been live for three days.
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">
-            {entries.map((entry) => (
+            {pageItems.map((entry) => (
               <li
                 key={entry.id}
                 className="flex items-start justify-between gap-3 p-3"
@@ -105,13 +114,25 @@ export function StylePlaybookPanel() {
                         In use
                       </Badge>
                     )}
+
+                    {entry.source === "GENERATED" && (
+                      <Badge variant="outline" className="gap-1.5">
+                        <Sparkles className="size-3" />
+                        {entry.sampleSize
+                          ? `From ${entry.sampleSize} videos`
+                          : "Generated"}
+                      </Badge>
+                    )}
+
                     {entry.label && (
                       <span className="text-sm font-medium">{entry.label}</span>
                     )}
+
                     <span className="text-xs text-muted-foreground">
                       {formatRelative(entry.createdAt)}
                     </span>
                   </div>
+
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                     {entry.guidance}
                   </p>
@@ -129,6 +150,12 @@ export function StylePlaybookPanel() {
             ))}
           </ul>
         )}
+
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
 
         <form onSubmit={handleAdd} className="grid gap-3 rounded-lg border p-3">
           <div className="grid gap-2">

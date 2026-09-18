@@ -6,11 +6,13 @@ import { Loader2, Pencil, Plus, Radio, Trash2, Upload } from "lucide-react"
 import { KeywordFormDialog } from "@/components/daily-news/keyword-form-dialog"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ListPagination } from "@/components/shared/list-pagination"
 import { SheetImportDialog } from "@/components/shared/sheet-import-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useAsyncData } from "@/hooks/use-async-data"
+import { usePagination } from "@/hooks/use-pagination"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
 import {
   bulkUpsertKeywords,
@@ -24,6 +26,8 @@ import {
   type ParsedKeywordRow,
 } from "@/lib/utils/parse-news-files"
 import type { NewsKeyword } from "@/lib/types/news-config"
+
+const PAGE_SIZE = 8
 
 function feedKind(query: string) {
   if (query.startsWith("RSS:")) return "Publisher feed"
@@ -44,6 +48,10 @@ export function KeywordsPanel() {
 
   const keywords = data?.keywords ?? []
   const activeCount = keywords.filter((keyword) => keyword.active).length
+  const { page, setPage, totalPages, pageItems } = usePagination(
+    keywords,
+    PAGE_SIZE
+  )
 
   async function handleToggle(keyword: NewsKeyword, active: boolean) {
     setTogglingId(keyword.id)
@@ -96,7 +104,7 @@ export function KeywordsPanel() {
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">
-            {keywords.map((keyword) => (
+            {pageItems.map((keyword) => (
               <li
                 key={keyword.id}
                 className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:justify-between"
@@ -174,6 +182,8 @@ export function KeywordsPanel() {
             ))}
           </ul>
         )}
+
+        <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setImportOpen(true)}>
