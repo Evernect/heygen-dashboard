@@ -36,10 +36,16 @@ are re-hosted there because Meta's Graph API fetches the file from a public URL.
 cd backend
 cp .env.example .env        # then fill it in
 npm install
+npm run fonts:install           # caption fonts - not in the repo, see "Caption styling"
 npx prisma migrate deploy
 npm test                        # clustering, scoring and filtering
 npm run dev                     # http://localhost:4000
 ```
+
+Run the same sequence on the deployment target. `npm install` fetches an ffmpeg
+and ffprobe binary for whatever platform it runs on, so never copy a
+`node_modules` across machines - a Windows tree ships `ffmpeg.exe` to a Linux
+box. `fonts:install` is separate because the fonts are gitignored.
 
 Generate the cron secret with:
 
@@ -51,9 +57,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Generate it the same way as the cron secret. Without it the connect screen
 refuses to save anything.
 
-Leave `DRY_RUN_HEYGEN` and `DRY_RUN_META` set to `true` while developing - the
-pipeline runs end to end but never spends HeyGen credits or posts to real
-accounts.
+There is no dry-run mode. Every render spends HeyGen credits and every
+scheduled publish posts to the live Facebook and Instagram accounts, so develop
+against a HeyGen account and a Meta page you do not mind writing to.
 
 ## 3. Frontend
 
@@ -145,6 +151,112 @@ database-level backstop against a double post.
 A `FAILED` script keeps whatever it got as far as. **Retry** in the UI resumes
 at the publish step when the video is already stored, and re-renders only when
 the failure happened before the video existed.
+
+---
+
+## Caption styling
+
+HeyGen no longer draws the captions. It is asked for an SRT file and nothing
+else (`caption: { file_format: "srt" }`), and the backend burns styled captions
+into the video itself with ffmpeg before anything is stored.
+
+That happens inside `advanceRender`, in the one gap between downloading
+HeyGen's render and uploading to Supabase Storage:
+
+```
+HeyGen completed -> video_url + subtitle_url
+  -> highlight agent picks the words and the colour
+  -> SRT + style -> .ass -> ffmpeg -vf ass=...
+  -> the burned video is what lands in Storage
+```
+
+Because `videoStorageUrl` is the single field the preview dialog, the approval
+gate and the Meta publish all read, the styled video is what a person watches
+before approving and what is posted afterwards. There is no unstyled copy in
+the bucket; `heygenVideoUrl` still points at HeyGen's original if it is needed.
+
+Burning is a port of the standalone `caption-burner` FastAPI service that the
+n8n workflow calls at `http://ffmpeg-service:3000/burn` - same presets, same
+ASS output, same highlight semantics. It lives in
+`backend/src/services/captions/`, with the `.ass` document assembled in
+`ass-builder.js` and ffmpeg driven from `ffmpeg.js`. ffmpeg and ffprobe come
+from `ffmpeg-static` and `@ffprobe-installer/ffprobe`, so there is nothing to
+install on the host.
+
+Encoding is serialised: the burner runs one job at a time, because this process
+also serves the dashboard and the every-minute publish tick. ffmpeg is a
+subprocess, so waiting never blocks the event loop.
+
+### Fonts have to be vendored
+
+The Python service read fonts from `/usr/share/fonts` inside its own image,
+where its Dockerfile had put them with `apt-get install fonts-montserrat
+fonts-noto` plus a direct download of Poppins ExtraBold. There is no apt here,
+so the equivalent step is:
+
+```bash
+cd backend
+npm run fonts:install    # downloads all 19 into assets/fonts/
+npm run fonts:check      # says what is missing, non-zero if the default style cannot render
+```
+
+They are **not committed** - 7.8MB of binaries, fetched the same way the
+Dockerfile fetched them. `assets/fonts/*.ttf` is gitignored; commit them
+instead if you would rather deploys not depend on GitHub being up.
+
+Montserrat deliberately does not come from google/fonts. That repo now ships
+only the variable `Montserrat[wght].ttf`, and libass renders a variable font at
+its default instance, so asking for Black would silently give you Regular. The
+installer takes one file per weight from the upstream JulietaUla repo, matching
+what Debian's `fonts-montserrat` put in the container.
+
+Only the font a style actually names has to be present. The shipped style uses
+`poppins-extrabold`, so `Poppins-ExtraBold.ttf` is the one that matters. A
+render fails with a clear message rather than silently substituting a fallback
+font, because a substituted font changes the line breaks.
+
+Burning is not optional: a render whose font is missing fails rather than
+storing an uncaptioned video, so `fonts:install` is a required setup step
+rather than a convenience.
+
+### Which words get emphasised
+
+One LLM call per render picks up to four words to colour and one light colour
+to colour them in, searching the web for a current palette rather than reciting
+one. It is the same agent the n8n workflow ran, and it reads the caller's own
+`openaiModel` from `AppSettings`.
+
+The model cannot be trusted with the parts that matter, so they are enforced in
+code rather than in the prompt: the four-word cap, one shared colour across
+every entry, no duplicates, and no word that does not appear in the script.
+A colour that is not valid `&H00BBGGRR` means **no** highlights rather than a
+fallback colour nobody chose - this is what replaces n8n's auto-fixing parser.
+
+The agent never fails a render. If OpenAI or the web search is unavailable the
+captions burn without highlights, because the render has already cost HeyGen
+credits by that point.
+
+### The style is a constant, and the resolution is part of it
+
+`DEFAULT_CAPTION_STYLE` in `caption-constants.js` carries the n8n node's style
+block over verbatim. Two of its values are absolute pixels rather than
+percentages and **do not scale with the frame**:
+
+| | |
+|---|---|
+| `fontSizePct` 6.0, `marginVPct` 25.0 | scale with height - fine at any resolution |
+| `outlineWidth` 5, `lineSpacingPx` 45 | fixed pixels - only correct at 720p |
+
+That is why `createVideo` asks HeyGen for **720p** rather than 1080p. At
+720x1280 the font is 77px and a 45px line spacing reads as deliberately tight,
+the way it does in the n8n output. At 1080p the same 45px sits under a 115px
+font and any cue that wraps past `maxWordsPerLine` (3) renders its lines
+overlapping.
+
+So raising the HeyGen resolution is not a free change: `lineSpacingPx` and
+`outlineWidth` have to be scaled with it. The burner's own guidance is a line
+spacing of 1.0x to 1.5x the font size, which at 1080p means roughly **138**
+rather than 45.
 
 ---
 

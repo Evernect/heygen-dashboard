@@ -8,7 +8,6 @@ function metaStatus() {
 
   return {
     source: "environment",
-    dryRun: env.DRY_RUN_META,
     accessTokenConfigured: hasToken,
     platforms: [
       {

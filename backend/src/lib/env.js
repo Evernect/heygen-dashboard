@@ -32,15 +32,6 @@ const schema = z.object({
   CRON_SECRET: z.string().optional(),
 
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
-
-  DRY_RUN_HEYGEN: z
-    .string()
-    .default("false")
-    .transform((value) => value.toLowerCase() === "true"),
-  DRY_RUN_META: z
-    .string()
-    .default("false")
-    .transform((value) => value.toLowerCase() === "true"),
 })
 
 const parsed = schema.safeParse(process.env)

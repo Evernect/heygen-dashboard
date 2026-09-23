@@ -17,3 +17,6 @@ logs/
 tmp/
 temp/
 *.local
+
+assets/fonts/*.ttf
+assets/fonts/OFL-*.txt

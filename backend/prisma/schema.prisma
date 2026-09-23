@@ -111,15 +111,15 @@ model Script {
 
   userId String
 
-  title String
-  scriptText        String  @db.Text
-  facebookCaption   String? @db.Text
-  instagramCaption  String? @db.Text
-  youtubeCaption    String? @db.Text
-  tiktokCaption     String? @db.Text
-  xPostText         String? @db.Text
-  hashtags          String[]
-  targetPlatforms   Platform[]
+  title            String
+  scriptText       String     @db.Text
+  facebookCaption  String?    @db.Text
+  instagramCaption String?    @db.Text
+  youtubeCaption   String?    @db.Text
+  tiktokCaption    String?    @db.Text
+  xPostText        String?    @db.Text
+  hashtags         String[]
+  targetPlatforms  Platform[]
 
   variantIndex Int     @default(0)
   variantLabel String?
@@ -131,15 +131,17 @@ model Script {
   rejectedAt      DateTime?
   rejectionReason String?
 
-  approvedBy String?
+  approvedBy          String?
   processingStartedAt DateTime?
   processingAttempts  Int       @default(0)
   lastError           String?   @db.Text
 
-  renderStartedAt DateTime?
-  heygenVideoId   String?
-  heygenVideoUrl  String?
-  videoStorageUrl String?
+  renderStartedAt   DateTime?
+  heygenVideoId     String?
+  heygenVideoUrl    String?
+  heygenSubtitleUrl String?
+  videoStorageUrl   String?
+  captionHighlights Json?
 
   posts PlatformPost[]
 
@@ -315,9 +317,9 @@ model NewsKeyword {
   userId String
 
   keywordId  String
-  type       String  @default("issue")
+  type       String @default("issue")
   topicLabel String
-  query      String  @db.Text
+  query      String @db.Text
 
   terms  String[]
   places String[]
@@ -340,11 +342,11 @@ model CampaignProfile {
   party               String?
   office              String?
   district            String?
-  districtDescription String? @db.Text
+  districtDescription String?   @db.Text
   districtTerms       String[]
   state               String?
   electionDate        DateTime?
-  personaSummary      String? @db.Text
+  personaSummary      String?   @db.Text
 
   timezone     String  @default("America/Los_Angeles")
   newsRunHour  Int     @default(7)
@@ -433,14 +435,14 @@ model NewsRun {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
-  keywordsUsed       Int @default(0)
-  feedsFetched       Int @default(0)
-  feedsFailed        Int @default(0)
-  articlesFound      Int @default(0)
-  articlesKept       Int @default(0)
-  clustersScored     Int @default(0)
+  keywordsUsed        Int @default(0)
+  feedsFetched        Int @default(0)
+  feedsFailed         Int @default(0)
+  articlesFound       Int @default(0)
+  articlesKept        Int @default(0)
+  clustersScored      Int @default(0)
   articleTextsFetched Int @default(0)
-  itemsCreated       Int @default(0)
+  itemsCreated        Int @default(0)
 
   warnings String[]
   error    String?  @db.Text
@@ -463,11 +465,11 @@ model DailyNewsItem {
   issueCode String
 
   topic           String
-  angle           String  @db.Text
-  whyNow          String  @db.Text
-  importance      String  @default("Medium")
-  importanceScore Int     @default(0)
-  sourceSummary   String  @db.Text
+  angle           String @db.Text
+  whyNow          String @db.Text
+  importance      String @default("Medium")
+  importanceScore Int    @default(0)
+  sourceSummary   String @db.Text
 
   headlinesOnly Boolean @default(false)
 

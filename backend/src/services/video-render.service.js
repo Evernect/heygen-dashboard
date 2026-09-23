@@ -3,6 +3,8 @@
 const { prisma } = require("../lib/prisma")
 const heygen = require("./heygen.service")
 const storage = require("./storage.service")
+const { burnCaptions } = require("./captions/caption-burner.service")
+const { selectHighlights } = require("./captions/highlight-colour.service")
 const { conflict } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 
@@ -16,6 +18,8 @@ const OCCUPYING_STATUSES = [
 ]
 
 const RENDERABLE_STATUSES = ["DRAFT", "FAILED", "REJECTED"]
+
+const inFlight = new Map()
 
 async function markRenderFailed(scriptId, error) {
   const message = error instanceof Error ? error.message : String(error)
@@ -60,6 +64,8 @@ async function startRender(scriptId) {
       renderStartedAt: new Date(),
       heygenVideoId: null,
       heygenVideoUrl: null,
+      heygenSubtitleUrl: null,
+      captionHighlights: null,
       videoStorageUrl: null,
       lastError: null,
       rejectedAt: null,
@@ -86,7 +92,41 @@ async function startRender(scriptId) {
   }
 }
 
+async function storeStyledVideo(script, result) {
+  const buffer = await heygen.downloadVideo(result.videoUrl)
+
+  if (!result.subtitleUrl) {
+    throw new Error(
+      "HeyGen returned the video without a caption file, so captions cannot be " +
+        "burned. Retry the render."
+    )
+  }
+
+  const srtText = await heygen.downloadSubtitles(result.subtitleUrl)
+  const highlights = await selectHighlights({
+    userId: script.userId,
+    scriptText: script.scriptText,
+  })
+
+  const burned = await burnCaptions({
+    videoBuffer: buffer,
+    srtText,
+    highlights,
+  })
+
+  return { buffer: burned, highlights }
+}
+
 async function advanceRender(scriptId) {
+  const existing = inFlight.get(scriptId)
+  if (existing) return existing
+
+  const run = advanceRenderOnce(scriptId).finally(() => inFlight.delete(scriptId))
+  inFlight.set(scriptId, run)
+  return run
+}
+
+async function advanceRenderOnce(scriptId) {
   const script = await prisma.script.findUnique({ where: { id: scriptId } })
   if (!script || script.status !== "RENDERING") return script
 
@@ -117,20 +157,23 @@ async function advanceRender(scriptId) {
       throw new Error(result.error ?? "HeyGen render failed")
     }
 
-    const buffer = await heygen.downloadVideo(result.videoUrl)
+    const { buffer, highlights } = await storeStyledVideo(script, result)
+
     const publicUrl = await storage.uploadVideo({
       scriptId: script.id,
       title: script.title,
       buffer,
     })
 
-    logger.info(`Script ${script.id}: video ready for review`)
+    logger.info(`Script ${script.id}: styled video ready for review`)
 
     return prisma.script.update({
       where: { id: script.id },
       data: {
         status: "PENDING_REVIEW",
         heygenVideoUrl: result.videoUrl,
+        heygenSubtitleUrl: result.subtitleUrl ?? null,
+        captionHighlights: highlights,
         videoStorageUrl: publicUrl,
         lastError: null,
       },

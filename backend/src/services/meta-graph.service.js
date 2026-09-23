@@ -1,6 +1,6 @@
 "use strict"
 
-const { env, requireEnv } = require("../lib/env")
+const { requireEnv } = require("../lib/env")
 const { HttpError } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 
@@ -43,18 +43,7 @@ async function graphRequest(path, { method = "GET", params = {}, token }) {
   return body
 }
 
-function dryRunId(prefix) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
 async function publishToFacebook({ videoUrl, title, caption }) {
-  if (env.DRY_RUN_META) {
-    logger.warn(
-      `[dry-run] Would publish to Facebook: "${title}" -> ${videoUrl}`
-    )
-    return dryRunId("dryrun-fb")
-  }
-
   const [pageId, token] = requireEnv(
     "FACEBOOK_PAGE_ID",
     "META_PAGE_ACCESS_TOKEN"
@@ -96,11 +85,6 @@ async function publishToFacebook({ videoUrl, title, caption }) {
 }
 
 async function publishToInstagram({ videoUrl, caption }) {
-  if (env.DRY_RUN_META) {
-    logger.warn(`[dry-run] Would publish Reel to Instagram -> ${videoUrl}`)
-    return dryRunId("dryrun-ig")
-  }
-
   const [accountId, token] = requireEnv(
     "INSTAGRAM_BUSINESS_ACCOUNT_ID",
     "META_PAGE_ACCESS_TOKEN"
@@ -178,26 +162,7 @@ function toCount(value) {
   return Number.isFinite(number) && number > 0 ? Math.round(number) : 0
 }
 
-function dryRunMetrics(platformPostId) {
-  let hash = 0
-  for (const character of String(platformPostId)) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0
-  }
-
-  const views = 400 + (hash % 2600)
-  const likes = Math.round(views * (0.02 + ((hash >> 3) % 40) / 1000))
-
-  return {
-    views,
-    likes,
-    comments: Math.round(likes * 0.15),
-    shares: Math.round(likes * 0.08),
-  }
-}
-
 async function fetchFacebookMetrics(platformPostId) {
-  if (env.DRY_RUN_META) return dryRunMetrics(platformPostId)
-
   const [token] = requireEnv("META_PAGE_ACCESS_TOKEN")
 
   const body = await graphRequest(`/${platformPostId}`, {
@@ -225,8 +190,6 @@ async function fetchFacebookMetrics(platformPostId) {
 }
 
 async function fetchInstagramMetrics(platformPostId) {
-  if (env.DRY_RUN_META) return dryRunMetrics(platformPostId)
-
   const [token] = requireEnv("META_PAGE_ACCESS_TOKEN")
 
   const body = await graphRequest(`/${platformPostId}/insights`, {

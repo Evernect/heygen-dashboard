@@ -52,8 +52,6 @@ if (require.main === module) {
   app.listen(env.PORT, () => {
     logger.info(`API listening on http://localhost:${env.PORT}`)
     logger.info(`Allowed origins: ${env.corsOrigins.join(", ")}`)
-    if (env.DRY_RUN_HEYGEN) logger.warn("DRY_RUN_HEYGEN is on — no videos will be rendered")
-    if (env.DRY_RUN_META) logger.warn("DRY_RUN_META is on — nothing will be posted to social platforms")
   })
 }
 

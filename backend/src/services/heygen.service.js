@@ -1,17 +1,11 @@
 "use strict"
 
-const { env } = require("../lib/env")
 const { resolveApiKey } = require("./heygen-credentials.service")
 const { getSettings } = require("./settings.service")
 const { HttpError } = require("../utils/errors")
 const { logger } = require("../utils/logger")
 
 const API_BASE = "https://api.heygen.com/v3"
-
-const DRY_RUN_VIDEO_URL = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-
-const DRY_RUN_POLLS_BEFORE_READY = 1
-const dryRunPollCounts = new Map()
 
 function withQuery(path, query) {
   const params = new URLSearchParams()
@@ -134,12 +128,6 @@ async function listAvatarLooks({
 }
 
 async function createVideo({ title, scriptText, userId }) {
-  if (env.DRY_RUN_HEYGEN) {
-    const videoId = `dryrun-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    logger.warn(`[dry-run] Pretending to create HeyGen video ${videoId}`)
-    return videoId
-  }
-
   const settings = await getSettings(userId)
 
   const avatarId = settings.heygenAvatarLookId
@@ -162,16 +150,16 @@ async function createVideo({ title, scriptText, userId }) {
         title,
         avatar_id: avatarId,
         script: scriptText,
-        aspect_ratio: "9:16",
-        resolution: "1080p",
+        aspect_ratio: "auto",
+        resolution: "720p",
         engine: { type: settings.heygenAvatarEngine },
-        caption: { style: "default", file_format: "srt" },
+        caption: { file_format: "srt" },
         voice_settings: {
           speed: settings.heygenVoiceSpeed,
           locale: settings.heygenVoiceLocale,
         },
         motion_prompt:
-          "Give me a calm, serious expression. Minimal smiling. No head movement. The overall movement should not be weird.",
+          "Natural hand gestures while speaking, but subtle and minimal - avoid large or exaggerated hand movements",
       }),
     },
     apiKey
@@ -187,25 +175,15 @@ async function createVideo({ title, scriptText, userId }) {
 }
 
 async function getVideoStatus(videoId, { userId } = {}) {
-  if (env.DRY_RUN_HEYGEN) {
-    const polls = (dryRunPollCounts.get(videoId) ?? 0) + 1
-    dryRunPollCounts.set(videoId, polls)
-
-    if (polls <= DRY_RUN_POLLS_BEFORE_READY) {
-      logger.warn(`[dry-run] HeyGen ${videoId} still "rendering" (poll ${polls})`)
-      return { status: "processing" }
-    }
-
-    dryRunPollCounts.delete(videoId)
-    logger.warn(`[dry-run] HeyGen ${videoId} "completed"`)
-    return { status: "completed", videoUrl: DRY_RUN_VIDEO_URL }
-  }
-
   const body = await heygenFetch(`/videos/${videoId}`, {}, await resolveApiKey(userId))
   const data = body?.data ?? {}
 
   if (data.status === "completed") {
-    return { status: "completed", videoUrl: data.video_url }
+    return {
+      status: "completed",
+      videoUrl: data.video_url,
+      subtitleUrl: data.subtitle_url ?? null,
+    }
   }
 
   if (data.status === "failed") {
@@ -231,11 +209,25 @@ async function downloadVideo(videoUrl) {
   return Buffer.from(await response.arrayBuffer())
 }
 
+async function downloadSubtitles(subtitleUrl) {
+  const response = await fetch(subtitleUrl)
+
+  if (!response.ok) {
+    throw new HttpError(
+      502,
+      `Could not download the caption file: HTTP ${response.status}`
+    )
+  }
+
+  return response.text()
+}
+
 module.exports = {
   fetchAccount,
   createVideo,
   getVideoStatus,
   downloadVideo,
+  downloadSubtitles,
   listAvatarGroups,
   listAvatarLooks,
 }

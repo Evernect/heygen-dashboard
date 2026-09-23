@@ -60,6 +60,8 @@ async function createWithFallback(openai, request) {
 async function runStructured({
   userId,
   prompt,
+  instructions,
+  tools,
   schemaName,
   schema,
   label = "Request",
@@ -80,6 +82,9 @@ async function runStructured({
       },
     },
   }
+
+  if (instructions) request.instructions = instructions
+  if (tools?.length) request.tools = tools
 
   if (resolved.openaiSendTemperature) {
     request.temperature = resolved.openaiTemperature

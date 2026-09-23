@@ -14,6 +14,12 @@ export const SCRIPT_STATUSES = [
 
 export type ScriptStatus = (typeof SCRIPT_STATUSES)[number]
 
+/** A word burned into the captions in an accent colour, as ASS `&H00BBGGRR`. */
+export interface CaptionHighlight {
+  word: string
+  colour: string
+}
+
 export interface Script {
   id: string
   topicId: string
@@ -46,7 +52,10 @@ export interface Script {
   renderStartedAt: string | null
   heygenVideoId: string | null
   heygenVideoUrl: string | null
+  heygenSubtitleUrl: string | null
+  /** The styled video: captions are burned in before it reaches Storage. */
   videoStorageUrl: string | null
+  captionHighlights: CaptionHighlight[] | null
 
   posts?: PlatformPost[]
 

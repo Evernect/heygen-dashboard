@@ -9,7 +9,6 @@ export interface MetaPlatformStatus {
 
 export interface MetaStatus {
   source: "environment"
-  dryRun: boolean
   accessTokenConfigured: boolean
   platforms: MetaPlatformStatus[]
 }

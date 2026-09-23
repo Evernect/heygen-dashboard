@@ -28,16 +28,6 @@ export function MetaSection({ status }: { status: MetaStatus }) {
       description="Where approved videos are published. Still read from the backend environment, so these are the same for everyone on this deployment — connecting them per account comes later."
     >
       <div className="space-y-4">
-        {status.dryRun && (
-          <p className="flex items-start gap-2 rounded-lg bg-status-pending/10 p-2.5 text-xs text-status-pending-foreground dark:text-status-pending">
-            <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-            <span>
-              <code className="font-mono">DRY_RUN_META</code> is on. The
-              pipeline runs end to end but nothing is actually posted.
-            </span>
-          </p>
-        )}
-
         {!status.accessTokenConfigured && (
           <p className="flex items-start gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
