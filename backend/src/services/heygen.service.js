@@ -157,6 +157,10 @@ async function createVideo({ title, scriptText, userId }) {
         voice_settings: {
           speed: settings.heygenVoiceSpeed,
           locale: settings.heygenVoiceLocale,
+          engine_settings: {
+            engine_type: "elevenlabs",
+            model: "eleven_flash_v2_5",
+          },
         },
         motion_prompt:
           "Natural hand gestures while speaking, but subtle and minimal - avoid large or exaggerated hand movements",
