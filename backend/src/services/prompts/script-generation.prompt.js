@@ -2,12 +2,50 @@
 
 const VERSION_LETTERS = ["A", "B", "C", "D", "E", "F"]
 
+const ONES = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+  "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+  "sixteen", "seventeen", "eighteen", "nineteen",
+]
+const TENS = [
+  "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty",
+  "ninety",
+]
+
 function estimateSeconds(words) {
   return Math.max(10, Math.round((words / 150) * 60))
 }
 
 function versionLetters(variantCount) {
   return VERSION_LETTERS.slice(0, variantCount)
+}
+
+function numberWord(value) {
+  if (value < 20) return ONES[value]
+  if (value > 99) return String(value)
+  const ones = value % 10
+  return ones
+    ? `${TENS[Math.floor(value / 10)]} ${ONES[ones]}`
+    : TENS[Math.floor(value / 10)]
+}
+
+function capitalise(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1)
+}
+
+function buildPacingRules(wordsMax) {
+  const breaksMin = Math.max(1, Math.round(wordsMax / 22))
+  const breaksMax = Math.max(breaksMin + 1, Math.ceil(wordsMax / 13))
+  const longLow = Math.max(7, Math.min(12, Math.round(wordsMax * 0.4)))
+
+  return {
+    breaksMin,
+    breaksMax,
+    punctuationOnly: Math.max(1, Math.min(breaksMin, Math.round(wordsMax / 45))),
+    distinctValues: Math.min(4, Math.max(2, Math.floor(breaksMax / 3) + 1)),
+    longLow,
+    longHigh: longLow + 6,
+  }
 }
 
 function joinWithAnd(values) {
@@ -32,10 +70,22 @@ Requirements for every generated closing line:
 - The candidate name, ${candidateName}, and the office, ${office}, must always both appear, spoken in full (never abbreviated).
 - The line must connect naturally to the sentence immediately before it, picking up its momentum rather than pivoting abruptly.
 - The line must include some form of a vote ask, a declaration of candidacy, or both, matching the tone of the reference patterns, but built from new wording, new word order, or a new connecting phrase each time.
+- The ask must always be directed outward, at the viewer's vote, or stated as the speaker's own candidacy. The closing line must never describe the speaker casting a vote for themselves. A line like So I'm voting for ${candidateName} for ${office} is wrong, because ${candidateName} is the speaker delivering the line, and a candidate does not ask viewers to watch them vote for themselves. They are asking viewers to vote for them, or declaring that they are running. Every closing line must pass this test: could a candidate credibly say this about themselves, as an ask to others or a declaration of their own candidacy, and not as a report of their own ballot choice.
 - Across a single output, no two versions may share sentence structure, opening word, or phrasing with either the reference patterns or each other. Treat every reference line as used up once its general shape has informed one version; the remaining versions must draw on a different shape or a fresh combination.
 - Do not default to the first reference pattern as a template. Rotate which structural idea (direct imperative, self-introduction, need-your-vote, thanks-plus-name, name-plus-imperative, this-is-why-framing) each version leans on, and feel free to blend or invent beyond the six shown as long as name and office still appear.
 
 You may rephrase lightly to connect naturally to the sentence before it, but the candidate name and office must always appear.`
+}
+
+function buildClosingChecklist({ candidateName, office }) {
+  if (!candidateName || !office) {
+    return `- Every version ends with a freshly generated closing line, and no two versions share the same phrasing.
+- No name, title, office, or call to vote appears in any closing line, because none were provided.`
+  }
+
+  return `- Every version ends with a freshly generated closing line, name and office both present in full, and no two versions share the same phrasing.
+- No closing line frames the ask as the speaker's own vote, such as I'm voting for ${candidateName}. The ask must be directed at the viewer's vote, an assertion of the speaker's own candidacy, or both, never a report of the speaker casting a vote for themselves.
+- No closing line is copied verbatim from the reference patterns list, and no two versions lean on the same structural idea from that list.`
 }
 
 function buildFramingBullet(state) {
@@ -58,6 +108,13 @@ function buildScriptGenerationPrompt({
   const seconds = estimateSeconds(wordsMax)
   const letters = versionLetters(variantCount)
   const versionList = joinWithAnd(letters.map((letter) => `Version ${letter}`))
+  const pacing = buildPacingRules(wordsMax)
+
+  const breakRange = `${numberWord(pacing.breaksMin)} to ${numberWord(pacing.breaksMax)}`
+  const longRange = `${numberWord(pacing.longLow)} to ${numberWord(pacing.longHigh)}`
+  const distinct = numberWord(pacing.distinctValues)
+  const punctuationOnly = numberWord(pacing.punctuationOnly)
+  const boundary = pacing.punctuationOnly === 1 ? "boundary" : "boundaries"
 
   const exampleClose =
     candidateName && office
@@ -103,7 +160,7 @@ Treat the section above as a soft steer only, not a rule. If it is empty, ignore
 
 # WRITING FOR THE EAR
 These rules govern the words themselves. They matter more for flow than the pause tags do.
-1. Vary sentence length on purpose. Every version must contain at least one very short sentence of three to six words and at least one longer sentence of twelve to eighteen words. A script built entirely from five-word sentences is the number one cause of choppy, word-by-word delivery.
+1. Vary sentence length on purpose. Every version must contain at least one very short sentence of three to six words and at least one longer sentence of ${longRange} words. A script built entirely from five-word sentences is the number one cause of choppy, word-by-word delivery.
 2. Join clauses instead of chopping them. Use and, but, so, because, and that to connect related ideas into one spoken line, rather than splitting every thought into its own sentence.
 3. Use commas inside sentences. Internal commas give the voice model its rhythm and stop it from flattening a long line into a monotone run.
 4. Keep each spoken run between roughly six and sixteen words. If a run goes past sixteen words without a comma, the model will run out of breath and the delivery will sag. Add a comma at the natural breath point.
@@ -118,8 +175,8 @@ These rules govern the words themselves. They matter more for flow than the paus
 Punctuation already produces natural pauses in the voice model. A break tag is for a pause that is deliberately longer or heavier than the punctuation alone would give. Tagging every sentence gap overrides the model's own prosody and is exactly what makes speech sound word-by-word.
 
 ## Placement
-- Break budget: four to seven break tags per version. Never fewer than four, never more than seven.
-- At least two sentence boundaries in every version must be carried by punctuation alone, with no break tag.
+- Break budget: ${breakRange} break tags per version. Never fewer than ${numberWord(pacing.breaksMin)}, never more than ${numberWord(pacing.breaksMax)}.
+- At least ${punctuationOnly} sentence ${boundary} in every version must be carried by punctuation alone, with no break tag.
 - Never place more than one break tag inside a single sentence.
 - Never open or close a script with a break tag.
 
@@ -148,7 +205,7 @@ Seconds only, written as decimals. Allowed values, exactly these seven: 0.15s, 0
 
 Rules on values:
 - No two consecutive break tags may use the same value.
-- Each version must use at least three different values.
+- Each version must use at least ${distinct} different values.
 - Most breaks in a version should be 0.3s or shorter.
 
 ## Format
@@ -158,8 +215,8 @@ Rules on values:
 - SSML appears in the ${variantCount} script fields only. Never in captions, title, hashtags, or any other field.
 
 ## Example pacing (pattern only, do not reuse the content)
-Where is our money going? <break time="0.5s"/> The budget's quadrupled since I got here, folks, and nothing actually got better. Same roads, same waiting lists, and a bigger bill every single year. <break time="0.3s"/> That's not a mystery, that's a choice. <break time="0.4s"/> I want a real audit of every dollar, <break time="0.2s"/> and I'm going to fight for it. <break time="0.6s"/> ${exampleClose}
-Note what this example does: five breaks, not one per sentence. Two sentence gaps run on punctuation alone. Sentence lengths swing from five words to seventeen. Values are all different from their neighbours. Contractions appear throughout.
+Where's our money going? <break time="0.5s"/> The budget's quadrupled since I got here, folks, and nothing actually got better. Same roads, same waiting lists, and a bigger bill every single year. <break time="0.3s"/> That's not a mystery, that's a choice. <break time="0.4s"/> I want a real audit of every dollar, <break time="0.2s"/> and I'm going to fight for it. <break time="0.6s"/> ${exampleClose}
+Note what this example does: breaks land on real beats, not after every sentence. Some sentence gaps run on punctuation alone. Sentence lengths swing widely. Values are all different from their neighbours. Contractions appear throughout. Copy the pattern, never the count: this example is written at one particular length, so keep to your own budget of ${breakRange} break tags.
 
 # SCRIPT
 Generate exactly ${variantCount} distinct script variations labeled ${versionList}. All ${variantCount} cover the same issue and angle, but each must differ meaningfully in its opening hook, mid-section phrasing, and closing line. The speaker's position and meaning must be identical across all ${variantCount}.
@@ -204,14 +261,14 @@ Applies to all five: plain text, no SSML, no emojis, no quotation marks, no hash
 
 # CHECK BEFORE RETURNING
 Flow and pauses, per version:
-- Four to seven break tags. Not one after every sentence.
-- At least two sentence boundaries run on punctuation alone.
+- ${capitalise(breakRange)} break tags. Not one after every sentence.
+- At least ${punctuationOnly} sentence ${pacing.punctuationOnly === 1 ? "boundary runs" : "boundaries run"} on punctuation alone.
 - No more than one break inside any single sentence.
 - No break at the very start or very end of the script.
 - Every value is one of 0.15s, 0.2s, 0.25s, 0.3s, 0.4s, 0.5s, 0.6s, written in the exact format with lowercase s and no ms suffix.
-- No two consecutive breaks share a value, and at least three different values appear.
+- No two consecutive breaks share a value, and at least ${distinct} different values appear.
 - 0.6s is used at most once, and only before the closing line.
-- At least one sentence of three to six words and one of twelve to eighteen words.
+- At least one sentence of three to six words and one of ${longRange} words.
 - No spoken run exceeds sixteen words without a comma.
 - No em dashes, ellipses, semicolons, parentheses, asterisks, or all caps. No digits, symbols, or unexpanded abbreviations.
 - No one or two word sentence fragments left standing alone.
@@ -221,12 +278,12 @@ Content:
 - Each version covers exactly one issue and opens on a different hook.
 - No sentence is shared between versions.
 - All ${variantCount} express the same position and meaning.
-- Every version ends with a freshly generated closing line, and no two versions share the same phrasing.
-- No closing line is copied verbatim from the reference patterns list, and no two versions lean on the same structural idea from that list.
+${buildClosingChecklist({ candidateName, office })}
 - Each label is 2-4 plain words and matches what its version actually does.
 - Voice matches the STYLE section: direct address, blunt opener, plain language, contractions throughout, no forced catchphrases.
 - Scan every script for uncontracted forms: I am, I will, I have, do not, cannot, that is, it is, we are, they are, will not, is not, was not, has not, you are. If any appear, replace them before returning.
 - No SSML appears in captions or any other field.
+- Total spoken length of each version, script plus closing line plus pauses, should read at a natural pace in no more than ${seconds} seconds.
 
 All fields:
 - Nothing is invented, including personal detail, dollar figures, or CTAs not in the input.
