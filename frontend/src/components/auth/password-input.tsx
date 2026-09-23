@@ -27,7 +27,7 @@ export function PasswordInput({
         tabIndex={-1}
         aria-label={visible ? "Hide password" : "Show password"}
         onClick={() => setVisible((current) => !current)}
-        className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+        className="absolute inset-y-0 right-1 my-auto text-muted-foreground"
       >
         {visible ? (
           <EyeOffIcon className="size-4" />

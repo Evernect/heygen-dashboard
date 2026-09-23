@@ -281,6 +281,19 @@
   td[data-numeric] {
     font-variant-numeric: tabular-nums;
   }
+
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
+
+  input::-webkit-credentials-auto-fill-button,
+  input::-webkit-strong-password-auto-fill-button {
+    position: absolute;
+    right: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 @layer base {
