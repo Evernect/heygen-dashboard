@@ -8,7 +8,7 @@ where exists (select 1 from cron.job where jobname = 'publish-due');
 
 select cron.schedule(
   'publish-due',
-  '* * * * *',
+  '*/10 * * * *',
   $$
     select net.http_post(
       url     := '<BACKEND_URL>/api/cron/publish-due',

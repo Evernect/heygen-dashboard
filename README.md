@@ -84,7 +84,7 @@ needs to stay open for a post to go out.
    directory in there as a migration it should apply, and this file is meant to
    be run by hand against Supabase instead.
 
-That file registers three jobs: `publish-due` every minute, and `daily-news` and
+That file registers three jobs: `publish-due` every 10 minutes, and `daily-news` and
 `insights-due` every hour. All carry an `x-cron-secret` header. Verification
 queries (did it fire? what did the backend answer?) are at the bottom of the SQL
 file.

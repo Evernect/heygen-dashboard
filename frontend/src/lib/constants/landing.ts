@@ -71,7 +71,7 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   {
     title: "Publishes without a babysitter",
     icon: CalendarClock,
-    body: "A Postgres cron job claims due posts every minute and posts each one exactly once. There is no worker process to keep alive, and a retry can never produce a duplicate post.",
+    body: "A Postgres cron job claims due posts every 10 minutes and posts each one exactly once. There is no worker process to keep alive, and a retry can never produce a duplicate post.",
     points: [
       "Runs in the database, not a server you maintain",
       "Claimed with SKIP LOCKED, so one post per platform, ever",

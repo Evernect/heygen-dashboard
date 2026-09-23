@@ -23,8 +23,8 @@ import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"))
-const MINUTES = Array.from({ length: 12 }, (_, i) =>
-  String(i * 5).padStart(2, "0")
+const MINUTES = Array.from({ length: 6 }, (_, i) =>
+  String(i * 10).padStart(2, "0")
 )
 const PERIODS = ["AM", "PM"] as const
 
@@ -197,10 +197,10 @@ function to12Hour(time: string) {
   const [hours24, minutes] = time.split(":").map(Number)
   const period = hours24 >= 12 ? "PM" : "AM"
   const hour12 = hours24 % 12 || 12
-  const roundedMinute = Math.round((minutes || 0) / 5) * 5
+  const roundedMinute = Math.min(50, Math.round((minutes || 0) / 10) * 10)
   return {
     hour: String(hour12).padStart(2, "0"),
-    minute: String(roundedMinute % 60).padStart(2, "0"),
+    minute: String(roundedMinute).padStart(2, "0"),
     period,
   } as const
 }

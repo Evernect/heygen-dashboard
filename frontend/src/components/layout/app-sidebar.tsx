@@ -100,7 +100,7 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <div className="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Scheduling runs every minute
+          Scheduling runs every 10 minutes
         </div>
       </SidebarFooter>
 

@@ -150,6 +150,7 @@ async function createVideo({ title, scriptText, userId }) {
         title,
         avatar_id: avatarId,
         script: scriptText,
+        brand_glossary_id: "86b187446b1d4644ba44670e91bea778",
         aspect_ratio: "auto",
         resolution: "720p",
         engine: { type: settings.heygenAvatarEngine },
