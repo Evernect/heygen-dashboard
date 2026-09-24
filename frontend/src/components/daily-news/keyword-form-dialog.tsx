@@ -14,11 +14,35 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
 import { createKeyword, updateKeyword } from "@/lib/api/news-config"
+import {
+  DEFAULT_PRIORITY,
+  DEFAULT_SCOPE,
+  KEYWORD_SCOPES,
+  KEYWORD_TYPES,
+  MAX_PRIORITY,
+  MIN_PRIORITY,
+  defaultType,
+  splitList,
+} from "@/lib/constants/news-keywords"
 import type { NewsKeyword } from "@/lib/types/news-config"
+
+const AUTO_TYPE = "auto"
+
+const PRIORITIES = Array.from(
+  { length: MAX_PRIORITY - MIN_PRIORITY + 1 },
+  (_, index) => String(MIN_PRIORITY + index)
+)
 
 const BLANK = {
   keywordId: "",
@@ -26,17 +50,18 @@ const BLANK = {
   query: "",
   terms: "",
   places: "",
-  type: "issue",
-  scope: "state",
-  priority: 3,
+  type: AUTO_TYPE,
+  scope: DEFAULT_SCOPE,
+  priority: String(DEFAULT_PRIORITY),
   active: true,
 }
 
-function toList(value: string) {
-  return value
-    .split("|")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-muted-foreground">{children}</p>
+}
+
+function Code({ children }: { children: React.ReactNode }) {
+  return <code className="font-mono">{children}</code>
 }
 
 export function KeywordFormDialog({
@@ -71,7 +96,7 @@ export function KeywordFormDialog({
               places: keyword.places.join(" | "),
               type: keyword.type,
               scope: keyword.scope,
-              priority: keyword.priority,
+              priority: String(keyword.priority),
               active: keyword.active,
             }
           : BLANK
@@ -83,10 +108,8 @@ export function KeywordFormDialog({
     setForm((current) => ({ ...current, ...partial }))
   }
 
-  const canSubmit =
-    form.keywordId.trim().length > 0 &&
-    form.topicLabel.trim().length > 0 &&
-    form.query.trim().length > 0
+  const canSubmit = form.query.trim().length > 0
+  const autoType = defaultType(form.query)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -94,15 +117,16 @@ export function KeywordFormDialog({
 
     setIsSaving(true)
     try {
+      const blank = isEditing ? "" : undefined
       const payload = {
-        keywordId: form.keywordId.trim(),
-        topicLabel: form.topicLabel.trim(),
+        keywordId: form.keywordId.trim() || undefined,
+        topicLabel: form.topicLabel.trim() || blank,
         query: form.query.trim(),
-        terms: toList(form.terms),
-        places: toList(form.places),
-        type: form.type.trim() || "issue",
-        scope: form.scope.trim() || "state",
-        priority: Number(form.priority) || 3,
+        terms: splitList(form.terms),
+        places: splitList(form.places),
+        type: form.type === AUTO_TYPE ? blank : form.type,
+        scope: form.scope,
+        priority: Number(form.priority),
         active: form.active,
       }
 
@@ -130,34 +154,11 @@ export function KeywordFormDialog({
           <DialogHeader>
             <DialogTitle>{isEditing ? "Edit feed" : "New feed"}</DialogTitle>
             <DialogDescription>
-              One feed per row. The terms and places are what actually decide
-              relevance — Google News ignores the boolean operators in a query,
-              so the query alone constrains almost nothing.
+              One topic per feed. Only the query is required. Put a place in
+              every query, and put quotes around anything that belongs
+              together.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="kw-id">Code</Label>
-              <Input
-                id="kw-id"
-                value={form.keywordId}
-                onChange={(event) => patch({ keywordId: event.target.value })}
-                placeholder="K01"
-                autoFocus
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="kw-label">Topic label</Label>
-              <Input
-                id="kw-label"
-                value={form.topicLabel}
-                onChange={(event) => patch({ topicLabel: event.target.value })}
-                placeholder="Gas tax"
-              />
-            </div>
-          </div>
 
           <div className="grid gap-2">
             <Label htmlFor="kw-query">Query</Label>
@@ -166,13 +167,48 @@ export function KeywordFormDialog({
               rows={2}
               value={form.query}
               onChange={(event) => patch({ query: event.target.value })}
-              placeholder='(gas tax OR "fuel tax") California when:1d'
+              placeholder='"gas tax" OR "fuel tax" California -Texas'
+              autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              Prefix with <code className="font-mono">RSS:</code> for a
-              publisher&apos;s own feed, or <code className="font-mono">GEO:</code>{" "}
-              for a place feed. Anything else is a Google News search.
-            </p>
+            <Hint>
+              Plain words must all appear (commas are ignored). Use{" "}
+              <Code>&quot;quotes&quot;</Code> for an exact phrase,{" "}
+              <Code>OR</Code> in capitals for either one, <Code>-word</Code> to
+              exclude, <Code>intitle:</Code> for headlines only and{" "}
+              <Code>site:</Code> for one outlet. The last 24 hours is searched
+              unless you add <Code>when:3d</Code> or <Code>when:12h</Code>.
+            </Hint>
+            <Hint>
+              Or start with <Code>GEO:</Code> for all local news about a place,{" "}
+              <Code>RSS:</Code> for an outlet&apos;s own feed, or{" "}
+              <Code>X:</Code> for an X search (not read by the morning run).
+            </Hint>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="kw-label">Topic label</Label>
+              <Input
+                id="kw-label"
+                value={form.topicLabel}
+                onChange={(event) => patch({ topicLabel: event.target.value })}
+                placeholder="Gas tax"
+              />
+              <Hint>Optional. Left empty, the query text is used.</Hint>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="kw-id">Code</Label>
+              <Input
+                id="kw-id"
+                value={form.keywordId}
+                onChange={(event) => patch({ keywordId: event.target.value })}
+                placeholder={isEditing ? "K01" : "Auto"}
+              />
+              {!isEditing && (
+                <Hint>Optional. Left empty, the next free K-number is used.</Hint>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -183,10 +219,10 @@ export function KeywordFormDialog({
               onChange={(event) => patch({ terms: event.target.value })}
               placeholder="gas tax | fuel tax | gas prices"
             />
-            <p className="text-xs text-muted-foreground">
-              Separated by <code className="font-mono">|</code>. An article must
-              mention at least one. Leave empty to accept anything.
-            </p>
+            <Hint>
+              Optional. Separated by <Code>|</Code> or commas. An article must
+              mention at least one, or it is discarded.
+            </Hint>
           </div>
 
           <div className="grid gap-2">
@@ -195,56 +231,88 @@ export function KeywordFormDialog({
               id="kw-places"
               value={form.places}
               onChange={(event) => patch({ places: event.target.value })}
-              placeholder="California | Sacramento | Newsom"
+              placeholder="Thousand Oaks | Simi Valley"
             />
-            <p className="text-xs text-muted-foreground">
-              Also required, and also <code className="font-mono">|</code>{" "}
-              separated. Both a term and a place must match.
-            </p>
+            <Hint>
+              Optional, same format. An article must mention at least one.
+              Only worth using when a search keeps returning junk.
+            </Hint>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-2">
               <Label htmlFor="kw-type">Type</Label>
-              <Input
-                id="kw-type"
+              <Select
                 value={form.type}
-                onChange={(event) => patch({ type: event.target.value })}
-                placeholder="issue"
-              />
+                items={[
+                  { value: AUTO_TYPE, label: `Auto (${autoType})` },
+                  ...KEYWORD_TYPES,
+                ]}
+                onValueChange={(type) => type && patch({ type })}
+              >
+                <SelectTrigger id="kw-type" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={AUTO_TYPE}>Auto ({autoType})</SelectItem>
+                  {KEYWORD_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="kw-scope">Scope</Label>
-              <Input
-                id="kw-scope"
+              <Select
                 value={form.scope}
-                onChange={(event) => patch({ scope: event.target.value })}
-                placeholder="state"
-              />
+                items={KEYWORD_SCOPES}
+                onValueChange={(scope) => scope && patch({ scope })}
+              >
+                <SelectTrigger id="kw-scope" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {KEYWORD_SCOPES.map((scope) => (
+                    <SelectItem key={scope.value} value={scope.value}>
+                      {scope.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="kw-priority">Priority</Label>
-              <Input
-                id="kw-priority"
-                type="number"
-                min={1}
-                max={10}
+              <Select
                 value={form.priority}
-                onChange={(event) =>
-                  patch({ priority: Number(event.target.value) })
-                }
-              />
+                onValueChange={(priority) => priority && patch({ priority })}
+              >
+                <SelectTrigger id="kw-priority" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <Hint>
+            <Code>name</Code> is for people and ranks higher. A{" "}
+            <Code>district</Code> scope gives a ranking boost. A higher priority
+            ranks above other stories.
+          </Hint>
 
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">
             <div>
               <Label htmlFor="kw-active">Active</Label>
-              <p className="text-xs text-muted-foreground">
-                Inactive feeds are skipped by the morning run.
-              </p>
+              <Hint>Inactive feeds are skipped by the morning run.</Hint>
             </div>
             <Switch
               id="kw-active"

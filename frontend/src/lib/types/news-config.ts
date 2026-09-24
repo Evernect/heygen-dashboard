@@ -14,9 +14,9 @@ export interface NewsKeyword {
 }
 
 export interface CreateKeywordInput {
-  keywordId: string
+  keywordId?: string
   type?: string
-  topicLabel: string
+  topicLabel?: string
   query: string
   terms?: string[]
   places?: string[]

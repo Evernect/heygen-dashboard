@@ -121,6 +121,30 @@ test("flatten keeps fresh, on-topic articles and counts the rest", () => {
   )
 })
 
+test("opinion pieces are dropped as off-topic", () => {
+  const { articles, offTopic } = flattenFeedItems({
+    feed: feedWith([
+      {
+        title: "Opinion: California's gas tax is too high - LA Times",
+        description: "Sacramento",
+        link: "https://latimes.com/op",
+        pubDate: hoursAgo(1),
+      },
+      {
+        title: "Op-ed: Sacramento must pause the gas tax - KCRA",
+        description: "California",
+        link: "https://kcra.com/op",
+        pubDate: hoursAgo(1),
+      },
+    ]),
+    keyword: KEYWORD,
+    now: NOW,
+  })
+
+  assert.equal(articles.length, 0)
+  assert.equal(offTopic, 2)
+})
+
 test("a single-item feed is not mistaken for an empty one", () => {
   const { articles } = flattenFeedItems({
     feed: feedWith({

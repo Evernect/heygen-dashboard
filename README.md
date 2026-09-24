@@ -89,14 +89,14 @@ That file registers three jobs: `publish-due` every 10 minutes, and `daily-news`
 queries (did it fire? what did the backend answer?) are at the bottom of the SQL
 file.
 
-`insights-due` covers both halves of the feedback loop — the daily engagement
-sync and the weekly style review — and runs hourly for the same reason the news
+`insights-due` covers both halves of the feedback loop - the daily engagement
+sync and the weekly style review - and runs hourly for the same reason the news
 job does.
 
 ### Why the news job runs hourly
 
 It runs hourly; the pipeline does not. **The run time is a dashboard setting**
-(`newsRunHour`, in the tenant's own timezone), so the schedule cannot know it —
+(`newsRunHour`, in the tenant's own timezone), so the schedule cannot know it -
 `pg_cron` speaks only UTC, the offset moves twice a year under daylight saving,
 and two tenants can want different hours. Postgres therefore asks every hour and
 the backend answers "nobody due" for twenty-three of them, which costs
@@ -110,7 +110,7 @@ Being asked hourly also makes the job self-healing: the backend runs a tenant
 whose hour has *passed* and who has no run recorded for the day yet, so a tick
 that arrived while the server was asleep, deploying or cold-starting is picked
 up by the next one instead of losing the day. A run that started and **failed**
-is not retried automatically — it already spent whatever it spent, and repeating
+is not retried automatically - it already spent whatever it spent, and repeating
 that hourly would multiply the cost of a persistent failure. **Run now** is the
 retry.
 
@@ -274,11 +274,37 @@ cluster near-identical headlines → score them → log every cluster → read t
 best article of each → ask the model to pick → ask it to write the angles →
 save.
 
-That relevance check is not redundant with the query. Google News ignores
-grouped boolean operators, so `(gas tax OR "fuel tax") California` constrains
-almost nothing; the `terms` and `places` columns are what actually decide, and
-they are applied in `article-filter.js` after the fetch. An article has to
-mention one term **and** one place to survive.
+### Writing a feed
+
+Only `query` is required; every other field has a default. The rules live in
+`keyword-rules.js` and follow the *Keywords Tab - How to Write a Search* guide
+handed to the campaign:
+
+| Query | Read as |
+|---|---|
+| `gas tax California`, `Gas, Tax, California` | One Google News search needing all the words. Commas and semicolons are dropped |
+| `"gas tax" OR "fuel tax" California -Texas` | Quotes, capital `OR`, `-word`, `intitle:` and `site:` are passed to Google as written. Brackets are ignored by Google, so write `"gas tax" OR "fuel tax"`, not `(gas OR fuel) tax` |
+| no `when:` | `when:1d` is appended. Write `when:3d` or `when:12h` to widen or narrow it |
+| `GEO:Thousand Oaks` | Google's local feed for that place, with no topic filter |
+| `RSS:https://calmatters.org/feed/` | That outlet's own feed |
+| `X:"FAIR Plan" California` | Stored, but never fetched by the morning run |
+
+Prefixes are case-insensitive.
+
+| Field | If left blank |
+|---|---|
+| Code | The next free `K##` |
+| Topic label | The query without its prefix, cut to 60 characters |
+| Type (`issue`, `name`, `geo`, `feed`) | `feed` for `RSS:`, `geo` for `GEO:`, otherwise `issue`. `name` ranks higher |
+| Scope (`district`, `state`, `national`) | `state`. `district` gives a ranking boost |
+| Priority (1–5) | 4 |
+| Terms, places | No filter. Separate entries with `|` or commas |
+| Active | On |
+
+`terms` and `places` are applied in `article-filter.js` after the fetch. When
+both are set, an article has to mention one term **and** one place. They are
+only worth setting when a well-written query keeps returning junk. Headlines
+starting "Opinion", "Editorial", "Commentary" or "Op-ed" are always dropped.
 
 ### Why news topics are still Topic rows
 
@@ -287,8 +313,8 @@ materialises a `Topic` carrying `source: DAILY_NEWS` and then runs the same
 generation code the content bank does. The content bank lists `source: MANUAL`
 only, so news topics never appear there.
 
-The alternative — letting `Script.topicId` be null and giving a script a second
-kind of parent — breaks two queries *silently*. `busySibling` in
+The alternative - letting `Script.topicId` be null and giving a script a second
+kind of parent - breaks two queries *silently*. `busySibling` in
 `video-render.service.js` has no `userId` filter and is safe only because
 `topicId` is a non-null foreign key to a user-owned row: the key **is** the
 tenancy boundary there. With nulls it would match other tenants' scripts. The
@@ -312,15 +338,17 @@ Almost nothing in a morning run is worth failing the whole run over.
 | Nothing clears the filters | `SUCCEEDED` with zero topics. The model is **never** called with an empty candidate list — handed nothing, it invents a story, which is the worst thing this pipeline can produce |
 | The model names a story that does not exist | The topic is kept and flagged "source unresolved" rather than dropped |
 | The angle call fails | Topics are saved with an empty angle for someone to write. The picks depend on a news window that has closed; an angle is a sentence a person can type |
-| The selection call fails | The run fails — there is nothing to build without picks |
+| The selection call fails | The run fails - there is nothing to build without picks |
 
 ### Importing the sheets
 
 Both **Feeds** and **Stated positions** on the setup screen take a CSV or Excel
 upload, and both read the original Google Sheets tabs as they are — the
 `keyword_id` / `topic_label` / `position_summary` column names are understood
-directly, along with pipe-separated `terms` and `places`, `Y`/`N` for `active`,
-and Excel's serial date format for `last_verified`.
+directly, along with `terms` and `places` separated by `|` or commas, `Y`/`N`
+for `active`, and Excel's serial date format for `last_verified`. On the Feeds
+sheet only `query` is required. A blank cell, or a `type`/`scope` value the app
+doesn't recognise, takes the default above. A priority above 5 is capped at 5.
 
 Re-importing an edited sheet **updates** rather than duplicates: feeds are
 matched on their code and positions on their issue. The preview says which rows
@@ -342,7 +370,7 @@ npm run news:preview -- <user-id>   # stages 1-6 only, no LLM call
 ### One run per tenant per day
 
 The guard is a unique `(userId, localDate)` on `NewsRun`, claimed before a
-single feed is fetched — not the in-process flag beside it, which does nothing
+single feed is fetched - not the in-process flag beside it, which does nothing
 across a restart or a second instance. A duplicate tick collides there and is
 recorded as `SKIPPED`. `localDate` is the date in the tenant's **own** zone;
 `toISOString().slice(0, 10)` would be a different day from 4pm Pacific onwards
@@ -356,7 +384,7 @@ logged, so the week's repeat check is not poisoned by the pipeline's own output.
 Published videos feed back into the scripts that come after them. Two scheduled
 runs, both per-tenant and both on `/insights`:
 
-**Daily — engagement sync.** Reads views, likes, comments and shares off every
+**Daily - engagement sync.** Reads views, likes, comments and shares off every
 Facebook and Instagram post from the last thirty days and **appends** a
 `VideoMetric` row per reading. Appending rather than overwriting is what turns
 the table into an engagement time series for free, since the read path already
@@ -372,8 +400,8 @@ row per pattern.
 A video's engagement rate is z-scored **within its own platform**, because a rate
 that is ordinary on Instagram may be excellent on Facebook. Its composite is the
 mean of its per-platform z-scores, so posting to one platform is not penalised
-against posting to two. Tiers are percentile bands over that ranking — top third,
-middle, bottom third — not absolute thresholds.
+against posting to two. Tiers are percentile bands over that ranking - top third,
+middle, bottom third - not absolute thresholds.
 
 Videos live for fewer than three days are held out of the mean, the standard
 deviation and the tier split entirely. They are still measured and displayed,
@@ -386,7 +414,7 @@ Break count, average pause duration, hook word count and sentence variety are
 extracted with a regex over the script text. Only `hookType`, a four-way
 classification, goes to the model, batched across scripts. A model asked to count
 `<break/>` tags will sometimes miscount, and these numbers are the evidence the
-weekly review reasons over — they need to be exact.
+weekly review reasons over - they need to be exact.
 
 Tagging happens once per script. The text never changes after posting, so there
 is nothing to re-read.
@@ -399,7 +427,7 @@ is injected into the script generation prompt under
 `MANUAL` one only.
 
 That split is deliberate. The review measures hooks, pause placement and outro
-lead-ins — all things the script writer controls and the angle writer does not.
+lead-ins - all things the script writer controls and the angle writer does not.
 Handing "favour rhetorical-question hooks" to the thing that picks which story to
 cover would be applying the evidence outside its range. Creating an entry
 deactivates only same-source entries, so the two tracks never clobber each other.
@@ -410,7 +438,7 @@ version talking the model out of its constraints.
 
 ### It says so when it does not know
 
-Below fifteen settled videos the review returns empty and writes no guidance —
+Below fifteen settled videos the review returns empty and writes no guidance -
 the script prompt keeps whatever it had. A pattern needs at least five videos
 sharing a value before it can be asserted at all. With a handful of videos every
 z-score is near zero and any "finding" would be noise; the sample gate is what
@@ -424,8 +452,8 @@ dashboard to `/connect-heygen` and cannot get past it, because nothing in the
 pipeline works without it.
 
 The dashboard's **Integrations** tab is where an account is connected, updated
-or disconnected. Settings keeps only the render configuration — which avatar,
-look and engine — so the account and the way it is used stay separate.
+or disconnected. Settings keeps only the render configuration - which avatar,
+look and engine - so the account and the way it is used stay separate.
 
 The key is verified before it is stored: `PUT /api/heygen/connection` calls
 `GET /v3/users/me` with it, and a key HeyGen refuses comes back as a 401 the
@@ -436,14 +464,14 @@ back in shows the connected account again, and the same panel on **Settings**
 replaces the key or disconnects entirely.
 
 `HEYGEN_API_KEY` in `.env` is now only a fallback for work that has no user
-attached — the `pg_cron` tick advancing an in-flight render. Requests made by
+attached - the `pg_cron` tick advancing an in-flight render. Requests made by
 the dashboard always carry a session, so they always use that user's key.
 
 ## Tenancy
 
 Every row belongs to a Supabase user. `Topic`, `Script` and `Insight` carry a
 `userId`, as do `AppSettings`, `HeygenConnection` and every table behind the
-daily news pipeline — `NewsKeyword`, `CampaignProfile`, `CandidatePosition`,
+daily news pipeline - `NewsKeyword`, `CampaignProfile`, `CandidatePosition`,
 `StylePlaybook`, `NewsClusterHistory`, `NewsRun` and `DailyNewsItem`. Every
 route outside `/api/cron/*` requires an access token and filters by the caller.
 
@@ -455,7 +483,7 @@ response does not reveal that the row exists at all.
 it, and that is what lets background work stay tenant-correct: the `pg_cron`
 tick claims due scripts across every tenant, then renders and polls each one
 with **its owner's** HeyGen key and settings. `startRender` and `advanceRender`
-take no user argument for exactly this reason — they read the owner off the
+take no user argument for exactly this reason - they read the owner off the
 script, so a render behaves the same whether a person or the scheduler
 advanced it.
 
@@ -472,7 +500,7 @@ look and engine.
 HeyGen models avatars in two levels: a **group** is a character, and each group
 holds one or more **looks** (outfit, pose, framing). The look id is what
 `POST /v3/videos` takes as `avatar_id`, so Settings picks a group first and
-then a look within it, and stores both — the group id only so the saved look
+then a look within it, and stores both - the group id only so the saved look
 can be found again on the next page load without scanning every group.
 
 Each look carries its own `preview_image_url`, so the preview beside the
@@ -578,7 +606,7 @@ selectable, so another one can be rendered in its place.
   Instagram per account is still to come.
 - The OpenAI API key is deployment-wide too. Only the model, temperature,
   reasoning effort and word range are per-user. The same applies to
-  `JINA_API_KEY`, which the daily news run uses to read article text — it is
+  `JINA_API_KEY`, which the daily news run uses to read article text - it is
   optional, and without it every summary is drawn from headlines alone.
 - The daily news run holds a Node event loop for minutes at a time, most of it
   the deliberate spacing between feed requests. That is fine in the

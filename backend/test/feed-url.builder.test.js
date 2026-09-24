@@ -21,12 +21,47 @@ test("GEO: prefix builds a Google News place feed", () => {
   )
 })
 
+function searchOf(url) {
+  return new URL(url).searchParams.get("q")
+}
+
 test("anything else becomes an encoded keyword search", () => {
-  const url = buildFeedUrl({ query: '(gas tax OR "fuel tax") California when:1d' })
+  const url = buildFeedUrl({ query: '"gas tax" OR "fuel tax" California when:3d' })
 
   assert.ok(url.startsWith("https://news.google.com/rss/search?q="))
-  assert.ok(url.includes("%22fuel%20tax%22"))
-  assert.ok(url.includes("when%3A1d"))
+  assert.equal(searchOf(url), '"gas tax" OR "fuel tax" California when:3d')
+})
+
+test("commas are dropped, so a comma list is one all-words search", () => {
+  assert.equal(
+    searchOf(buildFeedUrl({ query: "Gas, Tax, California" })),
+    "Gas Tax California when:1d"
+  )
+  assert.equal(
+    searchOf(buildFeedUrl({ query: "Gas Tax California" })),
+    "Gas Tax California when:1d"
+  )
+})
+
+test("the last 24 hours is the default window unless one is written", () => {
+  assert.equal(
+    searchOf(buildFeedUrl({ query: '"FAIR Plan" when:12h' })),
+    '"FAIR Plan" when:12h'
+  )
+  assert.equal(
+    searchOf(buildFeedUrl({ query: '"Klein Lopez" WHEN:7d' })),
+    '"Klein Lopez" WHEN:7d'
+  )
+  assert.equal(
+    searchOf(buildFeedUrl({ query: "intitle:Nordblum" })),
+    "intitle:Nordblum when:1d"
+  )
+})
+
+test("prefixes are case-insensitive and X rows are never fetched", () => {
+  assert.equal(buildFeedUrl({ query: "rss: https://calmatters.org/feed/" }), "https://calmatters.org/feed/")
+  assert.ok(buildFeedUrl({ query: "geo:Malibu" }).includes("/section/geo/Malibu?"))
+  assert.equal(buildFeedUrl({ query: 'X:"FAIR Plan" California' }), null)
 })
 
 test("an empty or prefix-only query yields nothing to fetch", () => {

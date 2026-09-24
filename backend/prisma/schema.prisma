@@ -325,7 +325,7 @@ model NewsKeyword {
   places String[]
 
   scope    String  @default("state")
-  priority Int     @default(3)
+  priority Int     @default(4)
   active   Boolean @default(true)
 
   createdAt DateTime @default(now())

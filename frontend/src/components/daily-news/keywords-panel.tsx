@@ -25,14 +25,16 @@ import {
   parseKeywordsFile,
   type ParsedKeywordRow,
 } from "@/lib/utils/parse-news-files"
+import { queryKind, type QueryKind } from "@/lib/constants/news-keywords"
 import type { NewsKeyword } from "@/lib/types/news-config"
 
 const PAGE_SIZE = 8
 
-function feedKind(query: string) {
-  if (query.startsWith("RSS:")) return "Publisher feed"
-  if (query.startsWith("GEO:")) return "Place feed"
-  return "News search"
+const FEED_KINDS: Record<QueryKind, string> = {
+  rss: "Publisher feed",
+  geo: "Place feed",
+  x: "X search",
+  search: "News search",
 }
 
 export function KeywordsPanel() {
@@ -118,7 +120,7 @@ export function KeywordsPanel() {
                       {keyword.topicLabel}
                     </span>
                     <Badge className="ring-1 ring-inset bg-muted text-muted-foreground ring-border">
-                      {feedKind(keyword.query)}
+                      {FEED_KINDS[queryKind(keyword.query)]}
                     </Badge>
                     {keyword.scope === "district" && (
                       <Badge className="ring-1 ring-inset bg-primary/10 text-primary ring-primary/20">
@@ -219,13 +221,26 @@ export function KeywordsPanel() {
           <>
             Upload the Keywords sheet straight from Google Sheets. Rows are
             matched on their code, so re-importing an edited sheet updates the
-            feeds already here rather than duplicating them.
+            feeds already here rather than duplicating them. Only{" "}
+            <code className="font-mono">query</code> is required; blank columns
+            take their defaults, and rows without a code are added as new feeds
+            with the next free K-number.
           </>
         }
-        requiredColumns={["keyword_id", "topic_label", "query"]}
+        requiredColumns={["query"]}
         columns={[
-          { label: "Code", render: (row) => row.keywordId, className: "w-20" },
-          { label: "Topic", render: (row) => row.topicLabel },
+          {
+            label: "Code",
+            render: (row) => row.keywordId || "Auto",
+            className: "w-20",
+          },
+          {
+            label: "Topic",
+            render: (row) =>
+              row.topicLabel || (
+                <span className="italic text-muted-foreground">from query</span>
+              ),
+          },
           {
             label: "Query",
             render: (row) => (

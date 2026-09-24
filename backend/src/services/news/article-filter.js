@@ -6,6 +6,8 @@ const OUTLET_SEPARATOR = " - "
 
 const MIN_HEADLINE_LENGTH = 20
 
+const OPINION_HEADLINE = /^(opinion|editorial|commentary|op-ed)\b/i
+
 function stripHtml(value) {
   return String(value ?? "").replace(/<[^>]*>/g, " ")
 }
@@ -82,6 +84,11 @@ function flattenFeedItems({
 
     const { title, outlet } = splitGoogleNewsTitle(item.title, item.source)
     const description = stripHtml(item.description)
+
+    if (OPINION_HEADLINE.test(title)) {
+      offTopic += 1
+      continue
+    }
 
     if (!matchesRelevance(`${title} ${description}`, keyword.terms, keyword.places)) {
       offTopic += 1

@@ -27,13 +27,6 @@ export function cell(record: Record<string, unknown>, key: string | undefined) {
   return String(record[key] ?? "").trim()
 }
 
-export function pipeList(value: string) {
-  return value
-    .split("|")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-}
-
 export function sheetBoolean(value: string, fallback = true) {
   const text = value.trim().toLowerCase()
   if (!text) return fallback

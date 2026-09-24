@@ -1,8 +1,13 @@
 import {
+  KEYWORD_SCOPES,
+  KEYWORD_TYPES,
+  MAX_PRIORITY,
+  splitList,
+} from "@/lib/constants/news-keywords"
+import {
   cell,
   findColumn,
   missingColumns,
-  pipeList,
   readSheetRecords,
   sheetBoolean,
   sheetDate,
@@ -21,6 +26,11 @@ export interface ParsedPositionRow extends ParsedRow, CreatePositionInput {
   isUpdate: boolean
 }
 
+function oneOf(value: string, options: readonly { value: string }[]) {
+  const text = value.toLowerCase()
+  return options.some((option) => option.value === text) ? text : undefined
+}
+
 export async function parseKeywordsFile(
   file: File,
   existingCodes: string[] = []
@@ -31,8 +41,8 @@ export async function parseKeywordsFile(
   const labelKey = findColumn(keys, "topic_label", "label", "topic")
   const queryKey = findColumn(keys, "query", "search", "feed")
 
-  if (!idKey || !labelKey || !queryKey) {
-    throw missingColumns("keyword_id", "topic_label", "query")
+  if (!queryKey) {
+    throw missingColumns("query")
   }
 
   const typeKey = findColumn(keys, "type")
@@ -49,13 +59,11 @@ export async function parseKeywordsFile(
     const keywordId = cell(record, idKey)
     const topicLabel = cell(record, labelKey)
     const query = cell(record, queryKey)
-    const priority = Number(cell(record, priorityKey))
+    const priority = Math.round(Number(cell(record, priorityKey)))
 
     let error: string | null = null
-    if (!keywordId) error = "Code is required"
-    else if (seen.has(keywordId)) error = "Duplicate code in this file"
-    else if (!topicLabel) error = "Topic label is required"
-    else if (!query) error = "Query is required"
+    if (!query) error = "Query is required"
+    else if (keywordId && seen.has(keywordId)) error = "Duplicate code in this file"
 
     if (keywordId) seen.add(keywordId)
 
@@ -64,13 +72,13 @@ export async function parseKeywordsFile(
       keywordId,
       topicLabel,
       query,
-      type: cell(record, typeKey) || "issue",
-      terms: pipeList(cell(record, termsKey)),
-      places: pipeList(cell(record, placesKey)),
-      scope: cell(record, scopeKey) || "state",
-      priority: Number.isFinite(priority) && priority > 0 ? priority : 3,
+      type: oneOf(cell(record, typeKey), KEYWORD_TYPES),
+      terms: splitList(cell(record, termsKey)),
+      places: splitList(cell(record, placesKey)),
+      scope: oneOf(cell(record, scopeKey), KEYWORD_SCOPES),
+      priority: priority >= 1 ? Math.min(priority, MAX_PRIORITY) : undefined,
       active: sheetBoolean(cell(record, activeKey)),
-      isUpdate: known.has(keywordId),
+      isUpdate: Boolean(keywordId) && known.has(keywordId),
       error,
     }
   })
@@ -130,9 +138,9 @@ export async function parsePositionsFile(
 
 export function keywordPayload(row: ParsedKeywordRow): CreateKeywordInput {
   return {
-    keywordId: row.keywordId,
+    keywordId: row.keywordId || undefined,
     type: row.type,
-    topicLabel: row.topicLabel,
+    topicLabel: row.topicLabel || undefined,
     query: row.query,
     terms: row.terms,
     places: row.places,

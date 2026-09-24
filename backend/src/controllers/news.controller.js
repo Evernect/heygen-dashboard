@@ -4,11 +4,21 @@ const { z } = require("zod")
 
 const { prisma } = require("../lib/prisma")
 const { notFound } = require("../utils/errors")
+const {
+  KEYWORD_TYPES,
+  KEYWORD_SCOPES,
+  DEFAULT_SCOPE,
+  DEFAULT_PRIORITY,
+  MIN_PRIORITY,
+  MAX_PRIORITY,
+  defaultType,
+  defaultTopicLabel,
+} = require("../services/news/keyword-rules")
 
 const pipeList = z
   .union([z.array(z.string()), z.string()])
   .transform((value) =>
-    (Array.isArray(value) ? value : value.split("|"))
+    (Array.isArray(value) ? value : value.split(/[|,]/))
       .map((entry) => entry.trim())
       .filter(Boolean)
   )
@@ -21,34 +31,60 @@ const sheetBoolean = z
       : ["y", "yes", "true", "1"].includes(value.trim().toLowerCase())
   )
 
-const keywordShape = {
-  keywordId: z.string().trim().min(1).max(40),
-  type: z.string().trim().min(1).max(40),
-  topicLabel: z.string().trim().min(1).max(120),
-  query: z.string().trim().min(1),
-  terms: pipeList,
-  places: pipeList,
-  scope: z.string().trim().min(1).max(40),
-  priority: z.coerce.number().int().min(1).max(10),
-  active: sheetBoolean,
+function optional(schema) {
+  return z.preprocess(
+    (value) =>
+      value === null || (typeof value === "string" && !value.trim())
+        ? undefined
+        : value,
+    schema.optional()
+  )
 }
 
+const lowercase = (value) =>
+  typeof value === "string" ? value.trim().toLowerCase() : value
+
 const createKeywordSchema = z.object({
-  ...keywordShape,
-  type: keywordShape.type.default("issue"),
-  terms: keywordShape.terms.default([]),
-  places: keywordShape.places.default([]),
-  scope: keywordShape.scope.default("state"),
-  priority: keywordShape.priority.default(3),
-  active: keywordShape.active.default(true),
+  query: z.string().trim().min(1),
+  keywordId: optional(z.string().trim().max(40)),
+  topicLabel: optional(z.string().trim().max(120)),
+  type: optional(z.preprocess(lowercase, z.enum(KEYWORD_TYPES))),
+  scope: optional(z.preprocess(lowercase, z.enum(KEYWORD_SCOPES))),
+  priority: optional(z.coerce.number().int().min(MIN_PRIORITY).max(MAX_PRIORITY)),
+  terms: optional(pipeList),
+  places: optional(pipeList),
+  active: optional(sheetBoolean),
 })
 
 const updateKeywordSchema = z
-  .object(keywordShape)
+  .object({
+    query: z.string().trim().min(1),
+    keywordId: z.string().trim().min(1).max(40),
+    topicLabel: z.string().trim().max(120),
+    type: z.union([z.literal(""), z.preprocess(lowercase, z.enum(KEYWORD_TYPES))]),
+    scope: z.union([z.literal(""), z.preprocess(lowercase, z.enum(KEYWORD_SCOPES))]),
+    priority: z.coerce.number().int().min(MIN_PRIORITY).max(MAX_PRIORITY),
+    terms: pipeList,
+    places: pipeList,
+    active: sheetBoolean,
+  })
   .partial()
   .refine((value) => Object.keys(value).length > 0, {
     message: "Provide at least one field to update",
   })
+
+function withKeywordDefaults(keyword) {
+  return {
+    ...keyword,
+    topicLabel: keyword.topicLabel || defaultTopicLabel(keyword.query),
+    type: keyword.type || defaultType(keyword.query),
+    scope: keyword.scope || DEFAULT_SCOPE,
+    priority: keyword.priority ?? DEFAULT_PRIORITY,
+    terms: keyword.terms ?? [],
+    places: keyword.places ?? [],
+    active: keyword.active ?? true,
+  }
+}
 
 const MAX_BULK_KEYWORDS = 200
 
@@ -58,6 +94,26 @@ const bulkKeywordsSchema = z.object({
 
 function owned(req) {
   return { id: req.params.id, userId: req.user.id }
+}
+
+const AUTO_CODE = /^K(\d+)$/i
+
+async function nextKeywordCodes(userId, count, reserved = []) {
+  const existing = await prisma.newsKeyword.findMany({
+    where: { userId },
+    select: { keywordId: true },
+  })
+
+  let highest = 0
+  for (const code of [...existing.map((row) => row.keywordId), ...reserved]) {
+    const match = AUTO_CODE.exec(code ?? "")
+    if (match) highest = Math.max(highest, Number(match[1]))
+  }
+
+  return Array.from(
+    { length: count },
+    (_, index) => `K${String(highest + index + 1).padStart(2, "0")}`
+  )
 }
 
 async function listKeywords(req, res) {
@@ -70,8 +126,12 @@ async function listKeywords(req, res) {
 }
 
 async function createKeyword(req, res) {
+  const userId = req.user.id
+  const keywordId =
+    req.body.keywordId ?? (await nextKeywordCodes(userId, 1))[0]
+
   const keyword = await prisma.newsKeyword.create({
-    data: { ...req.body, userId: req.user.id },
+    data: { ...withKeywordDefaults(req.body), keywordId, userId },
   })
 
   res.status(201).json(keyword)
@@ -79,9 +139,21 @@ async function createKeyword(req, res) {
 
 async function bulkUpsertKeywords(req, res) {
   const userId = req.user.id
+  const { keywords } = req.body
+
+  const provided = keywords.map((keyword) => keyword.keywordId).filter(Boolean)
+  const generated = await nextKeywordCodes(
+    userId,
+    keywords.length - provided.length,
+    provided
+  )
+  const withCodes = keywords.map((keyword) => ({
+    ...withKeywordDefaults(keyword),
+    keywordId: keyword.keywordId || generated.shift(),
+  }))
 
   const saved = await prisma.$transaction(
-    req.body.keywords.map((keyword) =>
+    withCodes.map((keyword) =>
       prisma.newsKeyword.upsert({
         where: {
           userId_keywordId: { userId, keywordId: keyword.keywordId },
@@ -99,10 +171,16 @@ async function updateKeyword(req, res) {
   const existing = await prisma.newsKeyword.findFirst({ where: owned(req) })
   if (!existing) throw notFound("Keyword not found")
 
+  const data = { ...req.body }
+  const query = data.query ?? existing.query
+  if (data.topicLabel === "") data.topicLabel = defaultTopicLabel(query)
+  if (data.type === "") data.type = defaultType(query)
+  if (data.scope === "") data.scope = DEFAULT_SCOPE
+
   res.json(
     await prisma.newsKeyword.update({
       where: { id: existing.id },
-      data: req.body,
+      data,
     })
   )
 }
