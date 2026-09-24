@@ -1,3 +1,5 @@
+export const QUERY_GUIDE_URL = "/docs/Keywords-Query-Guide.pdf"
+
 export const KEYWORD_TYPES = [
   { value: "issue", label: "Issue" },
   { value: "name", label: "Name (a person)" },

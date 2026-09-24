@@ -1,7 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, Pencil, Plus, Radio, Trash2, Upload } from "lucide-react"
+import {
+  BookOpen,
+  Loader2,
+  Pencil,
+  Plus,
+  Radio,
+  Trash2,
+  Upload,
+} from "lucide-react"
 
 import { KeywordFormDialog } from "@/components/daily-news/keyword-form-dialog"
 import { SettingsSection } from "@/components/settings/settings-section"
@@ -25,7 +33,11 @@ import {
   parseKeywordsFile,
   type ParsedKeywordRow,
 } from "@/lib/utils/parse-news-files"
-import { queryKind, type QueryKind } from "@/lib/constants/news-keywords"
+import {
+  QUERY_GUIDE_URL,
+  queryKind,
+  type QueryKind,
+} from "@/lib/constants/news-keywords"
 import type { NewsKeyword } from "@/lib/types/news-config"
 
 const PAGE_SIZE = 8
@@ -187,7 +199,16 @@ export function KeywordsPanel() {
 
         <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <a
+            href={QUERY_GUIDE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mr-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            <BookOpen className="size-4" />
+            How to write a query
+          </a>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <Upload />
             Import

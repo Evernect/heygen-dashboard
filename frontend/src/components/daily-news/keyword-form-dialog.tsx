@@ -32,6 +32,7 @@ import {
   KEYWORD_TYPES,
   MAX_PRIORITY,
   MIN_PRIORITY,
+  QUERY_GUIDE_URL,
   defaultType,
   splitList,
 } from "@/lib/constants/news-keywords"
@@ -181,7 +182,16 @@ export function KeywordFormDialog({
             <Hint>
               Or start with <Code>GEO:</Code> for all local news about a place,{" "}
               <Code>RSS:</Code> for an outlet&apos;s own feed, or{" "}
-              <Code>X:</Code> for an X search (not read by the morning run).
+              <Code>X:</Code> for an X search (not read by the morning run).{" "}
+              <a
+                href={QUERY_GUIDE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Read the full query guide
+              </a>
+              .
             </Hint>
           </div>
 
