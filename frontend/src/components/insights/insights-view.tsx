@@ -16,12 +16,8 @@ import { StylePlaybookPanel } from "@/components/insights/style-playbook-panel"
 import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState, ErrorState } from "@/components/shared/empty-state"
 import { LinkButton } from "@/components/shared/link-button"
-import {
-  ChartSkeleton,
-  StatCardsSkeleton,
-} from "@/components/shared/loading-skeletons"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
 import { useAsyncData } from "@/hooks/use-async-data"
 import {
   getMetricsOverview,
@@ -66,23 +62,13 @@ export function InsightsView() {
       <InsightsRunStrip onFinished={handleRunFinished} />
 
       {isLoading ? (
-        <div className="space-y-6">
-          <StatCardsSkeleton />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ChartSkeleton />
-            <ChartSkeleton />
-          </div>
-        </div>
+        <LoadingState label="Loading insights…" />
       ) : error ? (
         <ErrorState
           icon={TriangleAlert}
           title="Could not load insights"
           description={error.message}
-          action={
-            <Button variant="outline" onClick={handleRunFinished}>
-              Try again
-            </Button>
-          }
+          action={<RetryButton onRetry={handleRunFinished} />}
         />
       ) : !hasPublishedPosts ? (
         <>
@@ -117,7 +103,9 @@ export function InsightsView() {
             )}
           </div>
 
-          {rows.length > 0 && (
+          {performance.isLoading ? (
+            <LoadingState label="Loading video performance…" />
+          ) : rows.length > 0 && (
             <ScriptPerformanceTable
               rows={rows}
               page={page}

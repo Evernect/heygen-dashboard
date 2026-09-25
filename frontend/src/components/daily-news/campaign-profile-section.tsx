@@ -1,13 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, Save, UserRound } from "lucide-react"
+import { Loader2, Save, TriangleAlert, UserRound } from "lucide-react"
 
 import { SettingField } from "@/components/settings/setting-field"
 import {
   SettingsGrid,
   SettingsSection,
 } from "@/components/settings/settings-section"
+import { ErrorState } from "@/components/shared/empty-state"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -51,7 +53,7 @@ function toDateInput(value: string | null) {
 
 export function CampaignProfileSection() {
   const { notifySuccess, notifyError } = useToastFeedback()
-  const { data, isLoading, refetch } = useAsyncData(
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
     () => getCampaignProfile(),
     []
   )
@@ -110,222 +112,236 @@ export function CampaignProfileSection() {
       title="Campaign"
       description="Who the pipeline is writing for. This is what the selector and the angle writer are told, so keep it accurate — it also decides which stories count as local."
     >
-      <SettingsGrid>
-        <SettingField
-          className="lg:col-span-3"
-          label="Candidate name"
-          htmlFor="candidate-name"
-          description="Also used to detect stories that name the candidate."
-        >
-          <Input
-            id="candidate-name"
-            value={draft.candidateName}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ candidateName: event.target.value })}
-            placeholder="Ted Nordblum"
-          />
-        </SettingField>
-
-        <SettingField className="lg:col-span-1" label="Party" htmlFor="party">
-          <Input
-            id="party"
-            value={draft.party ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ party: event.target.value })}
-            placeholder="Republican"
-          />
-        </SettingField>
-
-        <SettingField className="lg:col-span-2" label="Office" htmlFor="office">
-          <Input
-            id="office"
-            value={draft.office ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ office: event.target.value })}
-            placeholder="California State Assembly"
-          />
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="District"
-          htmlFor="district"
-        >
-          <Input
-            id="district"
-            value={draft.district ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ district: event.target.value })}
-            placeholder="Assembly District 42"
-          />
-        </SettingField>
-
-        <SettingField className="lg:col-span-2" label="State" htmlFor="state">
-          <Input
-            id="state"
-            value={draft.state ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ state: event.target.value })}
-            placeholder="California"
-          />
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="Election date"
-          htmlFor="election-date"
-        >
-          <Input
-            id="election-date"
-            type="date"
-            value={toDateInput(draft.electionDate)}
-            disabled={isLoading || isSaving}
-            onChange={(event) =>
-              patch({ electionDate: event.target.value || null })
-            }
-          />
-        </SettingField>
-
-        <SettingField
-          className="sm:col-span-2 lg:col-span-6"
-          label="District description"
-          htmlFor="district-description"
-          description="Prose, for the prompt. e.g. Ventura and western Los Angeles counties."
-        >
-          <Input
-            id="district-description"
-            value={draft.districtDescription ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) =>
-              patch({ districtDescription: event.target.value })
-            }
-            placeholder="Ventura and western Los Angeles counties"
-          />
-        </SettingField>
-
-        <SettingField
-          className="sm:col-span-2 lg:col-span-6"
-          label="Local place names"
-          htmlFor="district-terms"
-          description="Comma separated. A story mentioning any of these is scored as local, whichever keyword found it."
-        >
-          <Input
-            id="district-terms"
-            value={draft.districtTerms.join(", ")}
-            disabled={isLoading || isSaving}
-            onChange={(event) =>
-              patch({
-                districtTerms: event.target.value
-                  .split(",")
-                  .map((term) => term.trim())
-                  .filter(Boolean),
-              })
-            }
-            placeholder="Thousand Oaks, Simi Valley, Moorpark, Camarillo, Malibu"
-          />
-        </SettingField>
-
-        <SettingField
-          className="sm:col-span-2 lg:col-span-6"
-          label="Anything else the model should know"
-          htmlFor="persona"
-          description="Optional. Appended to the description of the candidate in both prompts."
-        >
-          <Textarea
-            id="persona"
-            rows={3}
-            value={draft.personaSummary ?? ""}
-            disabled={isLoading || isSaving}
-            onChange={(event) => patch({ personaSummary: event.target.value })}
-          />
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="Run at"
-          htmlFor="run-hour"
-          description="Local time, in the zone below."
-        >
-          <Select
-            value={String(draft.newsRunHour)}
-            onValueChange={(next) => patch({ newsRunHour: Number(next) })}
-            disabled={isLoading || isSaving}
-          >
-            <SelectTrigger id="run-hour" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-64">
-              {HOURS.map((hour) => (
-                <SelectItem key={hour} value={String(hour)}>
-                  {String(hour).padStart(2, "0")}:00
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="Timezone"
-          htmlFor="timezone"
-        >
-          <Select
-            value={draft.timezone}
-            onValueChange={(next) => patch({ timezone: next ?? "UTC" })}
-            disabled={isLoading || isSaving}
-          >
-            <SelectTrigger id="timezone" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-64">
-              {timezones.map((zone) => (
-                <SelectItem key={zone} value={zone}>
-                  {zone}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingField>
-
-        <SettingField
-          className="lg:col-span-2"
-          label="Topics per run"
-          htmlFor="topics-per-run"
-          description="The model returns fewer when fewer are worth it."
-        >
-          <Input
-            id="topics-per-run"
-            type="number"
-            min={1}
-            max={5}
-            value={draft.topicsPerRun}
-            disabled={isLoading || isSaving}
-            onChange={(event) =>
-              patch({ topicsPerRun: Number(event.target.value) })
-            }
-          />
-        </SettingField>
-
-        <SettingField
-          className="sm:col-span-2 lg:col-span-6"
-          label="Run every morning"
-          description="Turn off to keep the configuration but stop the scheduled run. Run now still works."
-          control={
-            <Switch
-              checked={draft.newsEnabled}
-              disabled={isLoading || isSaving}
-              onCheckedChange={(checked) => patch({ newsEnabled: checked })}
-            />
-          }
+      {isLoading ? (
+        <LoadingState label="Loading the campaign profile…" className="py-8" />
+      ) : error && !data ? (
+        <ErrorState
+          icon={TriangleAlert}
+          title="Could not load the campaign profile"
+          description={error.message}
+          className="py-8"
+          action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
         />
-      </SettingsGrid>
+      ) : (
+        <>
+          <SettingsGrid>
+            <SettingField
+              className="lg:col-span-3"
+              label="Candidate name"
+              htmlFor="candidate-name"
+              description="Also used to detect stories that name the candidate."
+            >
+              <Input
+                id="candidate-name"
+                value={draft.candidateName}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ candidateName: event.target.value })}
+                placeholder="Ted Nordblum"
+              />
+            </SettingField>
 
-      <div className="mt-5 flex justify-end border-t pt-4">
-        <Button onClick={() => void handleSave()} disabled={!canSave || isSaving}>
-          {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
-          {isSaving ? "Saving…" : "Save campaign"}
-        </Button>
-      </div>
+            <SettingField className="lg:col-span-1" label="Party" htmlFor="party">
+              <Input
+                id="party"
+                value={draft.party ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ party: event.target.value })}
+                placeholder="Republican"
+              />
+            </SettingField>
+
+            <SettingField className="lg:col-span-2" label="Office" htmlFor="office">
+              <Input
+                id="office"
+                value={draft.office ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ office: event.target.value })}
+                placeholder="California State Assembly"
+              />
+            </SettingField>
+
+            <SettingField
+              className="lg:col-span-2"
+              label="District"
+              htmlFor="district"
+            >
+              <Input
+                id="district"
+                value={draft.district ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ district: event.target.value })}
+                placeholder="Assembly District 42"
+              />
+            </SettingField>
+
+            <SettingField className="lg:col-span-2" label="State" htmlFor="state">
+              <Input
+                id="state"
+                value={draft.state ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ state: event.target.value })}
+                placeholder="California"
+              />
+            </SettingField>
+
+            <SettingField
+              className="lg:col-span-2"
+              label="Election date"
+              htmlFor="election-date"
+            >
+              <Input
+                id="election-date"
+                type="date"
+                value={toDateInput(draft.electionDate)}
+                disabled={isLoading || isSaving}
+                onChange={(event) =>
+                  patch({ electionDate: event.target.value || null })
+                }
+              />
+            </SettingField>
+
+            <SettingField
+              className="sm:col-span-2 lg:col-span-6"
+              label="District description"
+              htmlFor="district-description"
+              description="Prose, for the prompt. e.g. Ventura and western Los Angeles counties."
+            >
+              <Input
+                id="district-description"
+                value={draft.districtDescription ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) =>
+                  patch({ districtDescription: event.target.value })
+                }
+                placeholder="Ventura and western Los Angeles counties"
+              />
+            </SettingField>
+
+            <SettingField
+              className="sm:col-span-2 lg:col-span-6"
+              label="Local place names"
+              htmlFor="district-terms"
+              description="Comma separated. A story mentioning any of these is scored as local, whichever keyword found it."
+            >
+              <Input
+                id="district-terms"
+                value={draft.districtTerms.join(", ")}
+                disabled={isLoading || isSaving}
+                onChange={(event) =>
+                  patch({
+                    districtTerms: event.target.value
+                      .split(",")
+                      .map((term) => term.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="Thousand Oaks, Simi Valley, Moorpark, Camarillo, Malibu"
+              />
+            </SettingField>
+
+            <SettingField
+              className="sm:col-span-2 lg:col-span-6"
+              label="Anything else the model should know"
+              htmlFor="persona"
+              description="Optional. Appended to the description of the candidate in both prompts."
+            >
+              <Textarea
+                id="persona"
+                rows={3}
+                value={draft.personaSummary ?? ""}
+                disabled={isLoading || isSaving}
+                onChange={(event) => patch({ personaSummary: event.target.value })}
+              />
+            </SettingField>
+
+            <SettingField
+              className="lg:col-span-2"
+              label="Run at"
+              htmlFor="run-hour"
+              description="Local time, in the zone below."
+            >
+              <Select
+                value={String(draft.newsRunHour)}
+                onValueChange={(next) => patch({ newsRunHour: Number(next) })}
+                disabled={isLoading || isSaving}
+              >
+                <SelectTrigger id="run-hour" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {HOURS.map((hour) => (
+                    <SelectItem key={hour} value={String(hour)}>
+                      {String(hour).padStart(2, "0")}:00
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingField>
+
+            <SettingField
+              className="lg:col-span-2"
+              label="Timezone"
+              htmlFor="timezone"
+            >
+              <Select
+                value={draft.timezone}
+                onValueChange={(next) => patch({ timezone: next ?? "UTC" })}
+                disabled={isLoading || isSaving}
+              >
+                <SelectTrigger id="timezone" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {timezones.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingField>
+
+            <SettingField
+              className="lg:col-span-2"
+              label="Topics per run"
+              htmlFor="topics-per-run"
+              description="The model returns fewer when fewer are worth it."
+            >
+              <Input
+                id="topics-per-run"
+                type="number"
+                min={1}
+                max={5}
+                value={draft.topicsPerRun}
+                disabled={isLoading || isSaving}
+                onChange={(event) =>
+                  patch({ topicsPerRun: Number(event.target.value) })
+                }
+              />
+            </SettingField>
+
+            <SettingField
+              className="sm:col-span-2 lg:col-span-6"
+              label="Run every morning"
+              description="Turn off to keep the configuration but stop the scheduled run. Run now still works."
+              control={
+                <Switch
+                  checked={draft.newsEnabled}
+                  disabled={isLoading || isSaving}
+                  onCheckedChange={(checked) => patch({ newsEnabled: checked })}
+                />
+              }
+            />
+          </SettingsGrid>
+
+          <div className="mt-5 flex justify-end border-t pt-4">
+            <Button onClick={() => void handleSave()} disabled={!canSave || isSaving}>
+              {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
+              {isSaving ? "Saving…" : "Save campaign"}
+            </Button>
+          </div>
+        </>
+      )}
     </SettingsSection>
   )
 }

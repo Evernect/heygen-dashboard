@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { ErrorStrip, LoadingStrip } from "@/components/shared/loading-state"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAsyncData } from "@/hooks/use-async-data"
@@ -82,10 +83,8 @@ export function RunStatusStrip({ onFinished }: { onFinished: () => void }) {
   const { notifySuccess, notifyError } = useToastFeedback()
   const [isStarting, setIsStarting] = React.useState(false)
 
-  const { data, refetch, setData } = useAsyncData<LatestRunResponse>(
-    () => getLatestRun(),
-    []
-  )
+  const { data, error, isLoading, isRefreshing, refetch, setData } =
+    useAsyncData<LatestRunResponse>(() => getLatestRun(), [])
 
   const run = data?.run ?? null
   const profile = data?.profile ?? null
@@ -123,6 +122,19 @@ export function RunStatusStrip({ onFinished }: { onFinished: () => void }) {
     } finally {
       setIsStarting(false)
     }
+  }
+
+  if (isLoading) return <LoadingStrip label="Checking the latest run…" />
+
+  if (error && !data) {
+    return (
+      <ErrorStrip
+        title="Could not load the run status"
+        error={error}
+        onRetry={refetch}
+        isRetrying={isRefreshing}
+      />
+    )
   }
 
   if (data && !profile) {

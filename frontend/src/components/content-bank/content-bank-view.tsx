@@ -7,7 +7,7 @@ import { Library, Plus, TriangleAlert, Upload } from "lucide-react"
 import { PageTransition } from "@/components/motion/page-transition"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { EmptyState, ErrorState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading-skeletons"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { PageHeader } from "@/components/shared/page-header"
 import { BulkImportTopicsDialog } from "@/components/content-bank/bulk-import-dialog"
 import { TopicFormDialog } from "@/components/content-bank/topic-form-dialog"
@@ -83,7 +83,7 @@ export function ContentBankView() {
   const [tab, setTab] = React.useState<TabValue>("ALL")
   const [page, setPage] = React.useState(1)
 
-  const { data, error, isLoading, refetch } = useAsyncData(
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
     () => listTopics({ status: tab, page, pageSize: PAGE_SIZE }),
     [tab, page]
   )
@@ -184,17 +184,13 @@ export function ContentBankView() {
       </Tabs>
 
       {isLoading ? (
-        <TableSkeleton columns={6} />
+        <LoadingState label="Loading topics…" />
       ) : error ? (
         <ErrorState
           icon={TriangleAlert}
           title="Could not load the content bank"
           description={error.message}
-          action={
-            <Button variant="outline" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          }
+          action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
         />
       ) : topics.length === 0 ? (
         <EmptyState

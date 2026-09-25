@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { ErrorStrip, LoadingStrip } from "@/components/shared/loading-state"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAsyncData } from "@/hooks/use-async-data"
@@ -150,10 +151,8 @@ export function InsightsRunStrip({ onFinished }: { onFinished: () => void }) {
   const { notifySuccess, notifyError } = useToastFeedback()
   const [starting, setStarting] = React.useState<InsightsRunKind | null>(null)
 
-  const { data, refetch, setData } = useAsyncData<LatestInsightsRunResponse>(
-    () => getLatestInsightsRun(),
-    []
-  )
+  const { data, error, isLoading, isRefreshing, refetch, setData } =
+    useAsyncData<LatestInsightsRunResponse>(() => getLatestInsightsRun(), [])
 
   const profile = data?.profile ?? null
   const metricsRun = data?.metrics ?? null
@@ -209,6 +208,19 @@ export function InsightsRunStrip({ onFinished }: { onFinished: () => void }) {
     } finally {
       setStarting(null)
     }
+  }
+
+  if (isLoading) return <LoadingStrip label="Checking the latest runs…" />
+
+  if (error && !data) {
+    return (
+      <ErrorStrip
+        title="Could not load the run status"
+        error={error}
+        onRetry={refetch}
+        isRetrying={isRefreshing}
+      />
+    )
   }
 
   if (data && !profile) {

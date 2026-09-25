@@ -1,11 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, MessageSquareQuote, Plus, Sparkles, Trash2 } from "lucide-react"
+import {
+  Loader2,
+  MessageSquareQuote,
+  Plus,
+  Sparkles,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react"
 
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ErrorState } from "@/components/shared/empty-state"
 import { ListPagination } from "@/components/shared/list-pagination"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +35,7 @@ const PAGE_SIZE = 6
 
 export function StylePlaybookPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const { notifySuccess, notifyError } = useToastFeedback()
-  const { data, isLoading, refetch } = useAsyncData(
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
     () => listStylePlaybook(),
     [refreshKey]
   )
@@ -91,10 +100,15 @@ export function StylePlaybookPanel({ refreshKey = 0 }: { refreshKey?: number }) 
     >
       <div className="space-y-4">
         {isLoading ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 inline size-4 animate-spin" />
-            Loading guidance…
-          </p>
+          <LoadingState label="Loading guidance…" className="py-8" />
+        ) : error ? (
+          <ErrorState
+            icon={TriangleAlert}
+            title="Could not load voice guidance"
+            description={error.message}
+            className="py-8"
+            action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
+          />
         ) : entries.length === 0 ? (
           <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
             No guidance yet. The style review writes the first version once

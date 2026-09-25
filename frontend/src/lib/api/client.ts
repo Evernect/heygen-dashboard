@@ -22,6 +22,16 @@ export class ApiConfigError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor() {
+    super("Couldn't reach the server. Check your connection and try again.")
+    this.name = "NetworkError"
+  }
+}
+
+const RETRY_DELAYS_MS = [700, 2000]
+const RETRYABLE_STATUSES = new Set([502, 503, 504])
+
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined | null>
@@ -59,8 +69,8 @@ export async function apiRequest<T>(
   { body, query, headers, accessToken, ...init }: RequestOptions = {}
 ): Promise<T> {
   const token = accessToken ?? (await browserAccessToken())
-
-  const response = await fetch(buildUrl(path, query), {
+  const url = buildUrl(path, query)
+  const requestInit: RequestInit = {
     ...init,
     headers: {
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -69,7 +79,30 @@ export async function apiRequest<T>(
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
     cache: "no-store",
-  })
+  }
+
+  const retries = (init.method ?? "GET") === "GET" ? RETRY_DELAYS_MS : []
+  let response: Response | null = null
+
+  for (let attempt = 0; ; attempt++) {
+    const canRetry = attempt < retries.length
+
+    try {
+      response = await fetch(url, requestInit)
+    } catch (caught) {
+      if (init.signal?.aborted) throw caught
+      if (!canRetry) throw new NetworkError()
+      response = null
+    }
+
+    if (!canRetry || (response && !RETRYABLE_STATUSES.has(response.status))) {
+      break
+    }
+
+    await wait(retries[attempt])
+  }
+
+  if (!response) throw new NetworkError()
 
   const text = await response.text()
   const payload = text ? safeParse(text) : null
@@ -83,6 +116,10 @@ export async function apiRequest<T>(
   }
 
   return payload as T
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function safeParse(text: string): unknown {

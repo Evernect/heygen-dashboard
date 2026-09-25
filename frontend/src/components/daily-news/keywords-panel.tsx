@@ -3,18 +3,20 @@
 import * as React from "react"
 import {
   BookOpen,
-  Loader2,
   Pencil,
   Plus,
   Radio,
   Trash2,
+  TriangleAlert,
   Upload,
 } from "lucide-react"
 
 import { KeywordFormDialog } from "@/components/daily-news/keyword-form-dialog"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ErrorState } from "@/components/shared/empty-state"
 import { ListPagination } from "@/components/shared/list-pagination"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { SheetImportDialog } from "@/components/shared/sheet-import-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,7 +53,10 @@ const FEED_KINDS: Record<QueryKind, string> = {
 
 export function KeywordsPanel() {
   const { notifySuccess, notifyError } = useToastFeedback()
-  const { data, isLoading, refetch } = useAsyncData(() => listKeywords(), [])
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
+    () => listKeywords(),
+    []
+  )
 
   const [formOpen, setFormOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
@@ -100,17 +105,22 @@ export function KeywordsPanel() {
       icon={Radio}
       title="Feeds"
       description={
-        isLoading
+        isLoading || error
           ? "Where the morning run looks for stories."
           : `Where the morning run looks for stories. ${activeCount} active of ${keywords.length}.`
       }
     >
       <div className="space-y-3">
         {isLoading ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 inline size-4 animate-spin" />
-            Loading feeds…
-          </p>
+          <LoadingState label="Loading feeds…" className="py-8" />
+        ) : error ? (
+          <ErrorState
+            icon={TriangleAlert}
+            title="Could not load feeds"
+            description={error.message}
+            className="py-8"
+            action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
+          />
         ) : keywords.length === 0 ? (
           <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
             No feeds yet. Without at least one, the morning run has nothing to

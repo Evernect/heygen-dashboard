@@ -1,12 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Loader2, Plus, Scale, Trash2, Upload } from "lucide-react"
+import { Plus, Scale, Trash2, TriangleAlert, Upload } from "lucide-react"
 
 import { PositionFormDialog } from "@/components/daily-news/position-form-dialog"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ErrorState } from "@/components/shared/empty-state"
 import { ListPagination } from "@/components/shared/list-pagination"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { SheetImportDialog } from "@/components/shared/sheet-import-dialog"
 import { Button } from "@/components/ui/button"
 import { useAsyncData } from "@/hooks/use-async-data"
@@ -28,7 +30,10 @@ const PAGE_SIZE = 8
 
 export function PositionsPanel() {
   const { notifySuccess, notifyError } = useToastFeedback()
-  const { data, isLoading, refetch } = useAsyncData(() => listPositions(), [])
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
+    () => listPositions(),
+    []
+  )
 
   const [formOpen, setFormOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
@@ -65,10 +70,15 @@ export function PositionsPanel() {
     >
       <div className="space-y-3">
         {isLoading ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 inline size-4 animate-spin" />
-            Loading positions…
-          </p>
+          <LoadingState label="Loading positions…" className="py-8" />
+        ) : error ? (
+          <ErrorState
+            icon={TriangleAlert}
+            title="Could not load positions"
+            description={error.message}
+            className="py-8"
+            action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
+          />
         ) : positions.length === 0 ? (
           <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
             No positions recorded. Without them every angle comes back flagged

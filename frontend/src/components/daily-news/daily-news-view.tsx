@@ -11,9 +11,8 @@ import { RunStatusStrip } from "@/components/daily-news/run-status-strip"
 import { PageTransition } from "@/components/motion/page-transition"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { EmptyState, ErrorState } from "@/components/shared/empty-state"
-import { TableSkeleton } from "@/components/shared/loading-skeletons"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
 import {
   Pagination,
   PaginationContent,
@@ -76,7 +75,7 @@ export function DailyNewsView() {
   const [tab, setTab] = React.useState<TabValue>("NEW")
   const [page, setPage] = React.useState(1)
 
-  const { data, error, isLoading, refetch } = useAsyncData(
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
     () => listDailyNews({ status: tab, page, pageSize: PAGE_SIZE }),
     [tab, page]
   )
@@ -170,17 +169,13 @@ export function DailyNewsView() {
       </Tabs>
 
       {isLoading ? (
-        <TableSkeleton columns={6} />
+        <LoadingState label="Loading today's topics…" />
       ) : error ? (
         <ErrorState
           icon={TriangleAlert}
           title="Could not load the daily news"
           description={error.message}
-          action={
-            <Button variant="outline" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          }
+          action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
         />
       ) : items.length === 0 ? (
         <EmptyState

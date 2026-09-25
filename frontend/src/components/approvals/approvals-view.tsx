@@ -10,9 +10,8 @@ import { ScriptOptionsGrid } from "@/components/approvals/script-options-grid"
 import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState, ErrorState } from "@/components/shared/empty-state"
 import { LinkButton } from "@/components/shared/link-button"
-import { TableSkeleton } from "@/components/shared/loading-skeletons"
+import { LoadingState, RetryButton } from "@/components/shared/loading-state"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncData } from "@/hooks/use-async-data"
 import { useToastFeedback } from "@/hooks/use-toast-feedback"
@@ -73,7 +72,7 @@ export function ApprovalsView() {
   const { notifySuccess, notifyError } = useToastFeedback()
   const [tab, setTab] = React.useState<TabValue>("DRAFT")
 
-  const { data, error, isLoading, refetch } = useAsyncData(
+  const { data, error, isLoading, isRefreshing, refetch } = useAsyncData(
     () => listScripts({ status: tab, includeSiblings: tab === "DRAFT" }),
     [tab]
   )
@@ -171,17 +170,13 @@ export function ApprovalsView() {
       </Tabs>
 
       {isLoading ? (
-        <TableSkeleton columns={6} />
+        <LoadingState label="Loading scripts…" />
       ) : error ? (
         <ErrorState
           icon={TriangleAlert}
           title="Could not load scripts"
           description={error.message}
-          action={
-            <Button variant="outline" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          }
+          action={<RetryButton onRetry={refetch} isRetrying={isRefreshing} />}
         />
       ) : scripts.length === 0 ? (
         <EmptyState
