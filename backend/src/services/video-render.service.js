@@ -1,9 +1,15 @@
 "use strict"
 
+const path = require("node:path")
+
 const { prisma } = require("../lib/prisma")
 const heygen = require("./heygen.service")
 const storage = require("./storage.service")
-const { burnCaptions } = require("./captions/caption-burner.service")
+const {
+  burnCaptions,
+  createJobDir,
+  removeJobDir,
+} = require("./captions/caption-burner.service")
 const { selectHighlights } = require("./captions/highlight-colour.service")
 const { conflict } = require("../utils/errors")
 const { logger } = require("../utils/logger")
@@ -93,8 +99,6 @@ async function startRender(scriptId) {
 }
 
 async function storeStyledVideo(script, result) {
-  const buffer = await heygen.downloadVideo(result.videoUrl)
-
   if (!result.subtitleUrl) {
     throw new Error(
       "HeyGen returned the video without a caption file, so captions cannot be " +
@@ -108,13 +112,24 @@ async function storeStyledVideo(script, result) {
     scriptText: script.scriptText,
   })
 
-  const burned = await burnCaptions({
-    videoBuffer: buffer,
-    srtText,
-    highlights,
-  })
+  const jobDir = await createJobDir()
+  const inputPath = path.join(jobDir, "input.mp4")
+  const outputPath = path.join(jobDir, "output.mp4")
 
-  return { buffer: burned, highlights }
+  try {
+    await heygen.downloadVideo(result.videoUrl, inputPath)
+    await burnCaptions({ inputPath, outputPath, srtText, highlights })
+
+    const publicUrl = await storage.uploadVideo({
+      scriptId: script.id,
+      title: script.title,
+      filePath: outputPath,
+    })
+
+    return { publicUrl, highlights }
+  } finally {
+    await removeJobDir(jobDir)
+  }
 }
 
 async function advanceRender(scriptId) {
@@ -157,13 +172,7 @@ async function advanceRenderOnce(scriptId) {
       throw new Error(result.error ?? "HeyGen render failed")
     }
 
-    const { buffer, highlights } = await storeStyledVideo(script, result)
-
-    const publicUrl = await storage.uploadVideo({
-      scriptId: script.id,
-      title: script.title,
-      buffer,
-    })
+    const { publicUrl, highlights } = await storeStyledVideo(script, result)
 
     logger.info(`Script ${script.id}: styled video ready for review`)
 

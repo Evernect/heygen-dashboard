@@ -98,6 +98,7 @@ export function ScriptDetailDialog({
       await updateScript(script.id, draft)
       notifySuccess("Changes saved")
       setIsEditing(false)
+      onOpenChange(false)
       onChanged()
     } catch (error) {
       notifyError("Could not save changes", error)

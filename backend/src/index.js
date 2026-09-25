@@ -15,6 +15,7 @@ const newsRoutes = require("./routes/news.routes")
 const scriptsRoutes = require("./routes/scripts.routes")
 const settingsRoutes = require("./routes/settings.routes")
 const topicsRoutes = require("./routes/topics.routes")
+const { clearJobRoot } = require("./services/captions/caption-burner.service")
 const { logger } = require("./utils/logger")
 
 const app = express()
@@ -49,6 +50,10 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 if (require.main === module) {
+  clearJobRoot().catch((error) => {
+    logger.warn(`Could not clear leftover caption jobs: ${error.message}`)
+  })
+
   app.listen(env.PORT, () => {
     logger.info(`API listening on http://localhost:${env.PORT}`)
     logger.info(`Allowed origins: ${env.corsOrigins.join(", ")}`)

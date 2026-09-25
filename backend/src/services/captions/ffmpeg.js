@@ -6,6 +6,7 @@ const { promisify } = require("node:util")
 const ffmpegPath = require("ffmpeg-static")
 const { path: ffprobePath } = require("@ffprobe-installer/ffprobe")
 
+const { FFMPEG_RC_LOOKAHEAD, FFMPEG_THREADS } = require("./caption-constants")
 const { HttpError } = require("../../utils/errors")
 
 const execFileAsync = promisify(execFile)
@@ -65,6 +66,8 @@ async function burnSubtitles({
     "-c:v", "libx264",
     "-crf", String(crf),
     "-preset", preset,
+    "-threads", String(FFMPEG_THREADS),
+    "-x264-params", `rc-lookahead=${FFMPEG_RC_LOOKAHEAD}`,
     "-c:a", "copy",
     "-movflags", "+faststart",
     outputPath,

@@ -19,7 +19,7 @@ const FLOW = [
 
 export function HeroSection() {
   return (
-    <section className="relative isolate overflow-hidden">
+    <section className="relative isolate flex min-h-svh flex-col justify-center overflow-hidden">
       <Spotlight />
 
       <div
@@ -31,7 +31,7 @@ export function HeroSection() {
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 pt-24 pb-20 text-center md:px-6 md:pt-28 md:pb-28"
+        className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center px-4 pt-24 pb-16 text-center md:px-6 md:pt-28 md:pb-20"
       >
         <motion.span
           variants={staggerItem}

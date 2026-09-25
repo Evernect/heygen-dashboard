@@ -1,5 +1,9 @@
 "use strict"
 
+const fs = require("node:fs")
+const { Readable } = require("node:stream")
+const { pipeline } = require("node:stream/promises")
+
 const { resolveApiKey } = require("./heygen-credentials.service")
 const { getSettings } = require("./settings.service")
 const { HttpError } = require("../utils/errors")
@@ -201,17 +205,17 @@ async function getVideoStatus(videoId, { userId } = {}) {
   return { status: "processing" }
 }
 
-async function downloadVideo(videoUrl) {
+async function downloadVideo(videoUrl, destPath) {
   const response = await fetch(videoUrl)
 
-  if (!response.ok) {
+  if (!response.ok || !response.body) {
     throw new HttpError(
       502,
       `Could not download rendered video: HTTP ${response.status}`
     )
   }
 
-  return Buffer.from(await response.arrayBuffer())
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(destPath))
 }
 
 async function downloadSubtitles(subtitleUrl) {

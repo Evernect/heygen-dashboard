@@ -126,14 +126,16 @@ const DEFAULT_CAPTION_STYLE = {
   outlineWidth: 5,
   lineSpacingPx: 45,
   position: "bottom",
-  marginVPct: 25.0,
+  marginVPct: 50.0,
   highlightStyle: "text_colour",
   highlightNoOutline: false,
   highlightScalePct: 100,
 }
 
 const DEFAULT_CRF = 18
-const DEFAULT_FFMPEG_PRESET = "medium"
+const DEFAULT_FFMPEG_PRESET = "veryfast"
+const FFMPEG_THREADS = 2
+const FFMPEG_RC_LOOKAHEAD = 10
 
 module.exports = {
   ASS_COLOUR_RE,
@@ -142,6 +144,8 @@ module.exports = {
   DEFAULT_FFMPEG_PRESET,
   DEFAULT_NEGATION_WORDS,
   DEFAULT_PRESET,
+  FFMPEG_RC_LOOKAHEAD,
+  FFMPEG_THREADS,
   FONTS_DIR,
   FONT_FILES,
   FONT_LIBRARY,

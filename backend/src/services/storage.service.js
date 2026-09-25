@@ -1,5 +1,7 @@
 "use strict"
 
+const fs = require("node:fs")
+
 const { createClient } = require("@supabase/supabase-js")
 
 const { env, requireEnv } = require("../lib/env")
@@ -24,15 +26,18 @@ function slugify(value) {
     .slice(0, 60)
 }
 
-async function uploadVideo({ scriptId, title, buffer }) {
+async function uploadVideo({ scriptId, title, filePath }) {
   const supabase = getClient()
   const bucket = env.SUPABASE_STORAGE_BUCKET
   const path = `${scriptId}/${slugify(title) || "video"}.mp4`
 
-  const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
-    contentType: "video/mp4",
-    upsert: true,
-  })
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, fs.createReadStream(filePath), {
+      contentType: "video/mp4",
+      upsert: true,
+      duplex: "half",
+    })
 
   if (error) {
     throw new HttpError(

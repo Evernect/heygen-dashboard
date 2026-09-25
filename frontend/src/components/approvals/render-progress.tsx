@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Clapperboard, Loader2 } from "lucide-react"
+import { Clapperboard } from "lucide-react"
 
 import { Separator } from "@/components/ui/separator"
 import { getRenderStatus } from "@/lib/api/scripts"
@@ -46,10 +46,7 @@ export function RenderProgress({
       <Separator />
 
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center">
-        <div className="relative">
-          <Clapperboard className="size-7 text-muted-foreground" />
-          <Loader2 className="absolute -right-2 -bottom-2 size-4 animate-spin text-status-processing" />
-        </div>
+        <Clapperboard className="size-7 text-muted-foreground" />
         <div className="space-y-1">
           <p className="text-sm font-medium">HeyGen is rendering the video</p>
           <p className="max-w-sm text-xs text-muted-foreground">

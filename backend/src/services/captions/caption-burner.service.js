@@ -52,8 +52,23 @@ async function assertPrerequisites(style) {
   }
 }
 
+async function createJobDir() {
+  const jobDir = path.join(JOB_ROOT, crypto.randomUUID())
+  await fs.mkdir(jobDir, { recursive: true })
+  return jobDir
+}
+
+async function removeJobDir(jobDir) {
+  await fs.rm(jobDir, { recursive: true, force: true })
+}
+
+async function clearJobRoot() {
+  await fs.rm(JOB_ROOT, { recursive: true, force: true })
+}
+
 async function burnCaptions({
-  videoBuffer,
+  inputPath,
+  outputPath,
   srtText,
   highlights = [],
   preset = DEFAULT_PRESET,
@@ -74,41 +89,26 @@ async function burnCaptions({
   await assertPrerequisites(style)
 
   return enqueue(async () => {
-    const jobDir = path.join(JOB_ROOT, crypto.randomUUID())
-    const inputPath = path.join(jobDir, "input.mp4")
-    const assPath = path.join(jobDir, "captions.ass")
-    const outputPath = path.join(jobDir, "output.mp4")
+    const assPath = path.join(path.dirname(outputPath), "captions.ass")
 
-    await fs.mkdir(jobDir, { recursive: true })
+    const { width, height } = await getVideoDimensions(inputPath)
+    await fs.writeFile(assPath, buildAss(cues, style, width, height), "utf8")
 
-    try {
-      await fs.writeFile(inputPath, videoBuffer)
+    const startedAt = Date.now()
+    await burnSubtitles({
+      inputPath,
+      assPath,
+      outputPath,
+      fontsDir: FONTS_DIR,
+      crf,
+      preset: ffmpegPreset,
+    })
 
-      const { width, height } = await getVideoDimensions(inputPath)
-      await fs.writeFile(assPath, buildAss(cues, style, width, height), "utf8")
-
-      const startedAt = Date.now()
-      await burnSubtitles({
-        inputPath,
-        assPath,
-        outputPath,
-        fontsDir: FONTS_DIR,
-        crf,
-        preset: ffmpegPreset,
-      })
-
-      const burned = await fs.readFile(outputPath)
-
-      logger.info(
-        `Burned ${cues.length} caption cues at ${width}x${height} ` +
-          `(${highlights.length} highlighted) in ${Math.round((Date.now() - startedAt) / 1000)}s`
-      )
-
-      return burned
-    } finally {
-      await fs.rm(jobDir, { recursive: true, force: true })
-    }
+    logger.info(
+      `Burned ${cues.length} caption cues at ${width}x${height} ` +
+        `(${highlights.length} highlighted) in ${Math.round((Date.now() - startedAt) / 1000)}s`
+    )
   })
 }
 
-module.exports = { burnCaptions }
+module.exports = { burnCaptions, clearJobRoot, createJobDir, removeJobDir }
